@@ -5,7 +5,7 @@
 
 const CONFIG = {
   // Get this from Google Cloud Console → APIs → Credentials
-  GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+  GOOGLE_CLIENT_ID: '340747877593-gdkeaj568hh77jeuq08qtq7n3ulc1ap9.apps.googleusercontent.com',
 
   // App version
   VERSION: '1.0.0',
