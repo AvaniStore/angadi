@@ -30,8 +30,17 @@ function renderReportTab(tab) {
   else if (tab === 'range') renderRangeReport();
 }
 
-function reportMetricsHtml(s) {
+function reportMetricsHtml(s, from, to) {
   const margin = s.revenue > 0 ? ((s.profit / s.revenue) * 100).toFixed(1) : 0;
+
+  // Returns in period
+  const periodReturns = (AppData.returns || []).filter(r => r.date >= from && r.date <= to);
+  const totalReturns = periodReturns.reduce((a, r) => a + (r.refund || 0), 0);
+
+  // Write-offs in period
+  const periodAdj = (AppData.adjustments || []).filter(a => a.date >= from && a.date <= to && a.type === 'Write-off');
+  const totalLoss = periodAdj.reduce((a, w) => a + (w.loss || 0), 0);
+
   return `
     <div class="metrics-grid" style="margin-bottom:16px">
       <div class="metric-card"><div class="metric-label">Revenue</div><div class="metric-value">${fmt(s.revenue)}</div></div>
@@ -40,6 +49,9 @@ function reportMetricsHtml(s) {
       <div class="metric-card"><div class="metric-label">GST collected</div><div class="metric-value">${fmt(s.gst)}</div></div>
       <div class="metric-card"><div class="metric-label">Bills</div><div class="metric-value">${s.bills}</div></div>
       <div class="metric-card"><div class="metric-label">Items sold</div><div class="metric-value">${s.items}</div></div>
+      ${totalReturns > 0 ? `<div class="metric-card"><div class="metric-label">Returns</div><div class="metric-value red">-${fmt(totalReturns)}</div></div>` : ''}
+      ${totalLoss > 0 ? `<div class="metric-card"><div class="metric-label">Write-off loss</div><div class="metric-value red">-${fmt(totalLoss)}</div></div>` : ''}
+      ${(totalReturns > 0 || totalLoss > 0) ? `<div class="metric-card"><div class="metric-label">Net profit</div><div class="metric-value green">${fmt(s.profit - totalReturns - totalLoss)}</div></div>` : ''}
     </div>`;
 }
 
@@ -64,7 +76,7 @@ function renderDailyReport() {
   const s = reportSummary(salesArr);
   document.getElementById('report-content').innerHTML = `
     <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Today — ${fmtDate(today())}</div>
-    ${reportMetricsHtml(s)}
+    ${reportMetricsHtml(s, today(), today())}
     ${salesTableHtml(salesArr)}
   `;
 }
@@ -95,7 +107,7 @@ function renderWeeklyReport() {
 
   document.getElementById('report-content').innerHTML = `
     <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Last 7 days — ${fmtDate(from)} to ${fmtDate(today())}</div>
-    ${reportMetricsHtml(s)}
+    ${reportMetricsHtml(s, from, today())}
     <div class="table-wrap" style="margin-bottom:16px">
       <table><thead><tr><th>Day</th><th>Revenue</th><th>Profit</th><th>Bills</th></tr></thead>
       <tbody>${dayRows}</tbody></table>
@@ -129,7 +141,7 @@ function runRangeReport() {
   const s = reportSummary(salesArr);
   document.getElementById('range-result').innerHTML = `
     <div style="font-size:13px;color:var(--text3);margin:12px 0">${fmtDate(from)} to ${fmtDate(to)}</div>
-    ${reportMetricsHtml(s)}
+    ${reportMetricsHtml(s, from, to)}
     ${salesTableHtml(salesArr)}
   `;
 }
