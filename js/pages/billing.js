@@ -202,6 +202,7 @@ function buildInvoiceHtml(sale, rows, s) {
     <div class="inv-head">
       <div>
         <div class="shop-name">${s.shopName}</div>
+        <div class="shop-tagline" style="font-size:11px;color:#4caf50;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Herbal, Organic &amp; Natural Products</div>
         <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.6">
           ${s.address ? s.address + '<br>' : ''}${s.city || ''}${s.state ? ', ' + s.state : ''}
           ${s.phone ? '<br>Ph: ' + s.phone : ''}
