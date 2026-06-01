@@ -1,17 +1,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #f7f8fa;
+  --bg: #f4f8f4;
   --bg2: #ffffff;
-  --bg3: #f0f2f5;
-  --text: #1a1a2e;
-  --text2: #5a6073;
-  --text3: #9aa0b0;
-  --border: #e4e7ed;
-  --border2: #d0d4de;
-  --accent: #1D9E75;
-  --accent-dark: #0F6E56;
-  --accent-light: #e1f5ee;
+  --bg3: #edf5ed;
+  --text: #1a2e1a;
+  --text2: #4a5e4a;
+  --text3: #8aa08a;
+  --border: #d8e8d8;
+  --border2: #c0d8c0;
+  --accent: #3a9e3a;
+  --accent-dark: #2d7a2d;
+  --accent-light: #e8f5e8;
   --amber: #d97706;
   --amber-bg: #fef3c7;
   --red: #dc2626;
@@ -21,24 +21,25 @@
   --radius: 8px;
   --radius-lg: 12px;
   --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 16px rgba(45,122,45,0.15);
 }
 
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.5; }
 
 /* AUTH */
-.auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
-.auth-box { background: white; border-radius: 16px; padding: 48px 40px; text-align: center; max-width: 360px; width: 90%; box-shadow: var(--shadow-md); }
-.auth-logo { margin-bottom: 16px; }
-.auth-box h1 { font-size: 28px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
-.auth-sub { color: var(--text2); margin: 8px 0 32px; font-size: 14px; }
+.auth-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #1a3a1a 0%, #2d7a2d 50%, #4caf50 100%); }
+.auth-box { background: white; border-radius: 20px; padding: 48px 40px; text-align: center; max-width: 360px; width: 90%; box-shadow: 0 8px 32px rgba(45,122,45,0.25); }
+.auth-logo { margin-bottom: 12px; }
+.auth-brand { font-size: 36px; font-weight: 800; color: #2d7a2d; letter-spacing: -1px; font-family: Georgia, serif; margin-bottom: 2px; }
+.auth-tagline { font-size: 13px; font-weight: 600; color: #4caf50; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.auth-sub { color: var(--text2); margin: 6px 0 28px; font-size: 13px; }
 .btn-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 20px; border: 1.5px solid var(--border2); border-radius: var(--radius); background: white; color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, box-shadow 0.15s; }
 .btn-google:hover { background: var(--bg3); box-shadow: var(--shadow); }
 .auth-note { margin-top: 20px; font-size: 12px; color: var(--text3); line-height: 1.6; }
 
 /* LAYOUT */
 .app { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; background: var(--text); flex-shrink: 0; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; transition: transform 0.25s; }
+.sidebar { width: 220px; background: #1a3a1a; flex-shrink: 0; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; transition: transform 0.25s; }
 .sidebar-header { padding: 20px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .shop-name { font-size: 13px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 .shop-loc { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 1px; }
@@ -55,6 +56,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
 .main-content { margin-left: 220px; flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
 .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 50; }
+.topbar-brand { display: flex; align-items: center; gap: 6px; }
+.topbar-brand-name { font-size: 15px; font-weight: 700; color: var(--accent-dark); font-family: Georgia, serif; }
 .menu-toggle { display: none; background: none; border: none; cursor: pointer; color: var(--text); padding: 4px; border-radius: 6px; }
 .topbar-title { font-size: 15px; font-weight: 600; flex: 1; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
