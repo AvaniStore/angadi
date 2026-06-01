@@ -66,13 +66,14 @@ function printInvoice(html) {
   frame.innerHTML = `<style>
     body{font-family:sans-serif;font-size:13px;color:#000;padding:24px;max-width:600px;margin:auto}
     table{width:100%;border-collapse:collapse}
-    th{background:#f5f5f5;padding:8px;text-align:left;font-size:12px}
+    th{background:#edf5ed;padding:8px;text-align:left;font-size:12px;color:#2d7a2d}
     td{padding:8px;border-bottom:1px solid #eee}
-    .inv-head{display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #000}
-    .shop-name{font-size:18px;font-weight:700}
-    .totals{margin-left:auto;width:200px}
+    .inv-head{display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:3px solid #3a9e3a}
+    .shop-name{font-size:20px;font-weight:700;color:#2d7a2d;font-family:Georgia,serif}
+    .shop-tagline{font-size:11px;color:#4caf50;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+    .totals{margin-left:auto;width:220px}
     .totals-row{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
-    .totals-row.final{font-weight:700;font-size:15px;border-top:1px solid #ccc;margin-top:6px;padding-top:8px}
+    .totals-row.final{font-weight:700;font-size:15px;border-top:2px solid #3a9e3a;margin-top:6px;padding-top:8px;color:#2d7a2d}
     .footer{text-align:center;margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:12px}
   </style>${html}`;
   window.print();
