@@ -3,19 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Angadi — Business Manager</title>
+  <title>Avani — The Organic Store</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="theme-color" content="#2d7a2d">
 </head>
 <body>
   <div id="auth-screen" class="auth-screen">
     <div class="auth-box">
       <div class="auth-logo">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#1D9E75"/><path d="M10 28L16 14L22 22L26 18L30 28H10Z" fill="white" opacity="0.9"/><circle cx="26" cy="13" r="3" fill="white"/></svg>
+        <!-- Avani globe+leaf logo SVG -->
+        <svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Globe -->
+          <circle cx="34" cy="42" r="26" fill="#3a9e3a"/>
+          <circle cx="34" cy="42" r="26" fill="none" stroke="#2d7a2d" stroke-width="1.5"/>
+          <!-- Globe lines -->
+          <ellipse cx="34" cy="42" rx="11" ry="26" fill="none" stroke="#2d7a2d" stroke-width="1" opacity="0.5"/>
+          <ellipse cx="34" cy="42" rx="20" ry="26" fill="none" stroke="#2d7a2d" stroke-width="1" opacity="0.3"/>
+          <line x1="8" y1="42" x2="60" y2="42" stroke="#2d7a2d" stroke-width="1" opacity="0.4"/>
+          <line x1="12" y1="30" x2="56" y2="30" stroke="#2d7a2d" stroke-width="1" opacity="0.3"/>
+          <line x1="12" y1="54" x2="56" y2="54" stroke="#2d7a2d" stroke-width="1" opacity="0.3"/>
+          <!-- Highlight -->
+          <ellipse cx="26" cy="32" rx="7" ry="5" fill="white" opacity="0.15" transform="rotate(-20 26 32)"/>
+          <!-- Stem -->
+          <path d="M34 18 Q36 28 34 16" stroke="#2d7a2d" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Left leaf -->
+          <path d="M34 22 Q22 10 20 4 Q30 8 34 22Z" fill="#4caf50"/>
+          <path d="M34 22 Q22 10 20 4" stroke="#2d7a2d" stroke-width="1" opacity="0.5"/>
+          <!-- Right leaf -->
+          <path d="M34 18 Q46 6 50 2 Q40 8 34 18Z" fill="#66bb6a"/>
+          <path d="M34 18 Q46 6 50 2" stroke="#2d7a2d" stroke-width="1" opacity="0.5"/>
+        </svg>
       </div>
-      <h1>Angadi</h1>
-      <p class="auth-sub">Business inventory & billing manager</p>
+      <h1 class="auth-brand">Avani</h1>
+      <p class="auth-tagline">The Organic Store</p>
+      <p class="auth-sub">Inventory &amp; billing manager</p>
       <button id="google-signin-btn" class="btn-google" onclick="handleGoogleSignIn()">
         <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/><path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
         Sign in with Google
@@ -28,11 +50,19 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="shop-logo">
-          <svg width="28" height="28" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="10" fill="#1D9E75"/><path d="M10 28L16 14L22 22L26 18L30 28H10Z" fill="white" opacity="0.9"/><circle cx="26" cy="13" r="3" fill="white"/></svg>
+          <svg width="32" height="32" viewBox="0 0 72 72" fill="none">
+            <circle cx="34" cy="42" r="26" fill="#4caf50"/>
+            <ellipse cx="34" cy="42" rx="11" ry="26" fill="none" stroke="#2d7a2d" stroke-width="1.5" opacity="0.6"/>
+            <line x1="8" y1="42" x2="60" y2="42" stroke="#2d7a2d" stroke-width="1.5" opacity="0.5"/>
+            <line x1="12" y1="30" x2="56" y2="30" stroke="#2d7a2d" stroke-width="1" opacity="0.4"/>
+            <line x1="12" y1="54" x2="56" y2="54" stroke="#2d7a2d" stroke-width="1" opacity="0.4"/>
+            <path d="M34 22 Q22 10 20 4 Q30 8 34 22Z" fill="#81c784"/>
+            <path d="M34 18 Q46 6 50 2 Q40 8 34 18Z" fill="#a5d6a7"/>
+          </svg>
         </div>
         <div class="shop-info">
-          <div class="shop-name" id="sidebar-shop-name">My Shop</div>
-          <div class="shop-loc" id="sidebar-shop-loc">Mangaluru</div>
+          <div class="shop-name" id="sidebar-shop-name">Avani</div>
+          <div class="shop-loc" id="sidebar-shop-loc">Udupi</div>
         </div>
       </div>
       <nav class="sidebar-nav">
@@ -45,7 +75,7 @@
           Inventory
         </a>
         <a class="nav-item" onclick="showPage('billing',this)" data-page="billing">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           New Bill
         </a>
         <a class="nav-item" onclick="showPage('vendors',this)" data-page="vendors">
@@ -76,9 +106,20 @@
         <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        <div class="topbar-brand">
+          <svg width="22" height="22" viewBox="0 0 72 72" fill="none">
+            <circle cx="34" cy="42" r="26" fill="#4caf50"/>
+            <ellipse cx="34" cy="42" rx="11" ry="26" fill="none" stroke="#2d7a2d" stroke-width="1.5" opacity="0.6"/>
+            <line x1="8" y1="42" x2="60" y2="42" stroke="#2d7a2d" stroke-width="1.5" opacity="0.5"/>
+            <path d="M34 22 Q22 10 20 4 Q30 8 34 22Z" fill="#81c784"/>
+            <path d="M34 18 Q46 6 50 2 Q40 8 34 18Z" fill="#a5d6a7"/>
+          </svg>
+          <span class="topbar-brand-name">Avani</span>
+        </div>
         <div class="topbar-title" id="topbar-title">Dashboard</div>
         <div class="topbar-actions">
           <div class="save-status" id="save-status"></div>
+          <div id="online-indicator" style="font-size:12px;margin-right:4px"></div>
           <button class="btn-icon" onclick="saveToGoogle()" title="Save to Google Drive">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           </button>
@@ -105,6 +146,7 @@
   <script src="js/auth.js"></script>
   <script src="js/drive.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/offline.js"></script>
   <script src="js/pages/dashboard.js"></script>
   <script src="js/pages/inventory.js"></script>
   <script src="js/pages/billing.js"></script>
