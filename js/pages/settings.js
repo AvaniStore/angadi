@@ -41,10 +41,32 @@ function renderSettings() {
       </div>
     </div>
 
+    <div class="card" style="border:1.5px solid #fca5a5">
+      <div class="settings-section" style="margin-bottom:0">
+        <h3 style="color:var(--red)">⚠ Reset & clear data</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Use these to remove test data before going live. Always export a backup first.</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+
+          <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Reset billing data</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Clears all sales bills and purchase history. Keeps your products, vendors and settings.</div>
+            <button class="btn btn-danger btn-sm" onclick="resetBillingData()">Clear bills & purchase history</button>
+          </div>
+
+          <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Full factory reset</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Clears everything — bills, purchases, products and vendors. Keeps shop name and settings.</div>
+            <button class="btn btn-danger btn-sm" onclick="factoryReset()">Clear all data</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="settings-section" style="margin-bottom:0">
         <h3>About</h3>
-        <p style="font-size:13px;color:var(--text2)">Vyapaar v${CONFIG.VERSION} &nbsp;·&nbsp; Built for small business owners &nbsp;·&nbsp; Data stored in your Google Drive</p>
+        <p style="font-size:13px;color:var(--text2)">Avani v${CONFIG.VERSION} &nbsp;·&nbsp; Built for small business owners &nbsp;·&nbsp; Data stored in your Google Drive</p>
       </div>
     </div>
   `;
@@ -95,4 +117,26 @@ function importData() {
     reader.readAsText(file);
   };
   input.click();
+}
+
+function resetBillingData() {
+  if (!confirm('This will delete ALL sales bills and purchase history.\n\nYour products and vendors will be kept.\n\nAre you sure?')) return;
+  if (!confirm('Last confirmation — this cannot be undone. Continue?')) return;
+  AppData.sales = [];
+  AppData.purchases = [];
+  autoSave();
+  showToast('Bills and purchase history cleared ✓');
+  renderSettings();
+}
+
+function factoryReset() {
+  if (!confirm('This will delete ALL data — bills, purchases, products and vendors.\n\nYour shop name and settings will be kept.\n\nAre you sure?')) return;
+  if (!confirm('Last confirmation — this cannot be undone. Continue?')) return;
+  AppData.sales = [];
+  AppData.purchases = [];
+  AppData.products = [];
+  AppData.vendors = [];
+  autoSave();
+  showToast('All data cleared ✓');
+  renderSettings();
 }
