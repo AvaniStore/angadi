@@ -88,9 +88,13 @@ function openProductForm(id) {
         <div class="form-group"><label>Brand</label><input id="pf-brand" value="${p ? p.brand || '' : ''}" placeholder="e.g. Tata, Hindustan Unilever"></div>
         <div class="form-group">
           <label>Category</label>
-          <select id="pf-cat" onchange="toggleVegNote()">
-            ${CATEGORIES.map(c => `<option value="${c}" ${p && p.cat === c ? 'selected' : ''}>${c}</option>`).join('')}
+          <select id="pf-cat" onchange="toggleCatOther()">
+            ${CATEGORIES.map(c => `<option value="${c}" ${p && (p.cat === c || (c === 'Other' && !CATEGORIES.slice(0,-1).includes(p.cat))) ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
+        </div>
+        <div class="form-group" id="pf-cat-other-group" style="${p && !CATEGORIES.slice(0,-1).includes(p.cat) ? '' : 'display:none'}">
+          <label>Custom category</label>
+          <input id="pf-cat-other" value="${p && !CATEGORIES.slice(0,-1).includes(p.cat) ? p.cat : ''}" placeholder="e.g. Dairy, Frozen, Beverages">
         </div>
       </div>
       <div class="form-grid">
@@ -120,7 +124,7 @@ function openProductForm(id) {
         <div class="form-group"><label>Low stock alert at</label><input id="pf-low" type="number" value="${p ? p.lowAt : CONFIG.DEFAULT_LOW_STOCK}" placeholder="${CONFIG.DEFAULT_LOW_STOCK}"></div>
         <div class="form-group"><label>Expiry date</label><input id="pf-expiry" type="date" value="${p ? p.expiry || '' : ''}"></div>
       </div>
-      <div id="veg-note" style="${isVeg ? '' : 'display:none'}" class="alert alert-green" style="margin-top:8px">
+      <div id="veg-note" style="${isVeg ? '' : 'display:none'};margin-top:8px" class="alert alert-green">
         <span>💡 Vegetables: use the <strong>Update veg prices</strong> button on the inventory page to quickly update cost & selling prices weekly without editing each product.</span>
       </div>
       <div class="form-actions">
@@ -148,8 +152,10 @@ function toggleWeightOther() {
   if (group) group.style.display = val === 'Other' ? '' : 'none';
 }
 
-function toggleVegNote() {
+function toggleCatOther() {
   const val = document.getElementById('pf-cat').value;
+  const group = document.getElementById('pf-cat-other-group');
+  if (group) group.style.display = val === 'Other' ? '' : 'none';
   const note = document.getElementById('veg-note');
   if (note) note.style.display = val === 'Vegetables' ? '' : 'none';
 }
@@ -170,11 +176,15 @@ function saveProduct() {
     if (!confirm('Selling price is above MRP. Continue?')) return;
   }
 
+  const catSel = document.getElementById('pf-cat').value;
+  const catOther = document.getElementById('pf-cat-other') ? document.getElementById('pf-cat-other').value.trim() : '';
+  const cat = catSel === 'Other' ? (catOther || 'Other') : catSel;
+
   const product = {
     id: editingProductId || uid(),
     name,
     brand: document.getElementById('pf-brand').value.trim(),
-    cat: document.getElementById('pf-cat').value,
+    cat,
     weight: weightSel !== 'Other' ? weightSel : '',
     weightOther: weightSel === 'Other' ? weightOther : '',
     cost,
