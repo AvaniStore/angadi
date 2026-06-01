@@ -72,7 +72,10 @@ async function onSignedIn() {
 
   // Load data from Drive
   showToast('Loading your data...');
-  await loadFromDrive();
+  const hasLocal = loadLocal(); // Load local first for instant display
+  if (hasLocal) { renderCurrentPage(); updateSidebarShopInfo(); }
+  await loadFromDrive(); // Then sync from Drive
+  saveLocal(); // Keep local copy in sync
   renderCurrentPage();
   updateSidebarShopInfo();
 }
