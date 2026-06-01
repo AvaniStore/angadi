@@ -41,6 +41,7 @@ function renderInventory() {
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-xs" onclick="openProductForm('${p.id}')">Edit</button>
+          <button class="btn btn-xs" style="color:var(--amber);border-color:#fcd34d" onclick="openStockAdjust('${p.id}')">±</button>
           <button class="btn btn-xs btn-danger" onclick="deleteProduct('${p.id}')">Del</button>
         </div>
       </td>
@@ -263,6 +264,117 @@ function saveVegPrices() {
   });
   autoSave();
   showToast('Vegetable prices updated ✓');
+  document.getElementById('product-form-container').innerHTML = '';
+  renderInventory();
+}
+
+// ---- Stock adjustment (write-off) ----
+function openStockAdjust(pid) {
+  const p = AppData.products.find(x => x.id === pid);
+  if (!p) return;
+
+  // Recent adjustments for this product
+  const recentAdj = (AppData.adjustments || []).filter(a => a.pid === pid).slice(-5).reverse();
+  const recentHtml = recentAdj.length ? recentAdj.map(a =>
+    `<div style="font-size:12px;color:var(--text3);padding:3px 0">${fmtDate(a.date)} — ${a.type}: ${a.qty > 0 ? '+' : ''}${a.qty} units (${a.reason})</div>`
+  ).join('') : '';
+
+  document.getElementById('product-form-container').innerHTML = `
+    <div class="card" style="margin-bottom:16px;border:2px solid #fcd34d">
+      <div class="card-head">
+        <span class="card-title">± Adjust stock — ${p.name}${p.brand ? ' ('+p.brand+')' : ''}</span>
+        <button class="btn btn-sm" onclick="document.getElementById('product-form-container').innerHTML=''">Cancel</button>
+      </div>
+      <div style="font-size:13px;margin-bottom:14px">
+        Current stock: <strong>${p.stock} units</strong>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Adjustment type</label>
+          <select id="adj-type" onchange="updateAdjSign()" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+            <option value="remove">Remove stock (write-off)</option>
+            <option value="add">Add stock (manual correction)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reason</label>
+          <select id="adj-reason" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+            <option>Near expiry — removed from shelf</option>
+            <option>Expired</option>
+            <option>Damaged / broken</option>
+            <option>Internal use / sample</option>
+            <option>Theft / shrinkage</option>
+            <option>Manual correction</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input id="adj-qty" type="number" min="1" step="1" placeholder="0"
+            style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)"
+            oninput="updateAdjPreview('${pid}')">
+        </div>
+      </div>
+      <div id="adj-preview" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+      ${recentAdj.length ? `<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:500;margin-bottom:4px;color:var(--text3)">Recent adjustments:</div>${recentHtml}</div>` : ''}
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="saveStockAdjust('${pid}')">Confirm adjustment</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('product-form-container').scrollIntoView({ behavior: 'smooth' });
+}
+
+function updateAdjSign() {
+  const pid = document.querySelector('[id^="adj-qty"]') ? document.getElementById('adj-qty').dataset.pid : null;
+  updateAdjPreview();
+}
+
+function updateAdjPreview(pid) {
+  const p = pid ? AppData.products.find(x => x.id === pid) : null;
+  if (!p) return;
+  const type = document.getElementById('adj-type').value;
+  const qty = parseInt(document.getElementById('adj-qty').value) || 0;
+  const newStock = type === 'remove' ? p.stock - qty : p.stock + qty;
+  const loss = type === 'remove' ? qty * p.cost : 0;
+  const preview = document.getElementById('adj-preview');
+  if (!preview) return;
+  if (qty <= 0) { preview.innerHTML = ''; return; }
+  if (type === 'remove' && qty > p.stock) {
+    preview.innerHTML = `<span style="color:var(--red)">⚠ Cannot remove more than current stock (${p.stock})</span>`;
+    return;
+  }
+  preview.innerHTML = `
+    Stock will change: <strong>${p.stock}</strong> → <strong style="color:${type==='remove'?'var(--red)':'var(--accent-dark)'}">${newStock}</strong>
+    ${loss > 0 ? ` &nbsp;·&nbsp; <span style="color:var(--red)">Loss: ${fmt(loss)} (at cost)</span>` : ''}
+  `;
+}
+
+function saveStockAdjust(pid) {
+  const p = AppData.products.find(x => x.id === pid);
+  if (!p) return;
+  const type = document.getElementById('adj-type').value;
+  const qty = parseInt(document.getElementById('adj-qty').value) || 0;
+  const reason = document.getElementById('adj-reason').value;
+
+  if (qty <= 0) { showToast('Enter a valid quantity'); return; }
+  if (type === 'remove' && qty > p.stock) { showToast(`Cannot remove more than current stock (${p.stock})`); return; }
+
+  const change = type === 'remove' ? -qty : qty;
+  const loss = type === 'remove' ? qty * p.cost : 0;
+
+  p.stock += change;
+
+  if (!AppData.adjustments) AppData.adjustments = [];
+  AppData.adjustments.push({
+    id: uid(), date: today(),
+    pid, product: p.name, brand: p.brand || '',
+    type: type === 'remove' ? 'Write-off' : 'Manual add',
+    qty: change, reason, loss,
+  });
+
+  autoSave();
+  showToast(`Stock adjusted: ${p.name} → ${p.stock} units ✓`);
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
 }
