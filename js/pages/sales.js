@@ -12,7 +12,12 @@ function renderSales() {
       <td>${(s.items||[]).length} item${(s.items||[]).length!==1?'s':''}</td>
       <td style="font-weight:600">${fmt(s.total)}</td>
       <td style="color:var(--accent-dark);font-weight:600">${fmt(s.profit)}</td>
-      <td><button class="btn btn-xs" onclick="viewSale('${s.id}')">View</button></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs" onclick="viewSale('${s.id}')">View</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteSale('${s.id}')">Del</button>
+        </div>
+      </td>
     </tr>
   `).join('') || `<tr><td colspan="8"><div class="empty-state"><p>No sales recorded yet.</p></div></td></tr>`;
 
@@ -32,6 +37,23 @@ function renderSales() {
       </table>
     </div>
   `;
+}
+
+function deleteSale(id) {
+  const sale = AppData.sales.find(s => s.id === id);
+  if (!sale) return;
+  if (!confirmDelete(`Delete bill for ${sale.customer} on ${fmtDate(sale.date)} (${fmt(sale.total)})?`)) return;
+  // Restore stock for deleted bill
+  if (confirm('Restore stock for items in this bill?')) {
+    (sale.items || []).forEach(it => {
+      const p = AppData.products.find(x => x.id === it.pid);
+      if (p) p.stock += it.qty;
+    });
+  }
+  AppData.sales = AppData.sales.filter(s => s.id !== id);
+  autoSave();
+  showToast('Bill deleted ✓');
+  renderSales();
 }
 
 function viewSale(id) {
