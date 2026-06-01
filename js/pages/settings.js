@@ -1,9 +1,13 @@
 // ============================================================
-//  PAGE: Settings
+//  PAGE: Settings — with PIN-protected reset
 // ============================================================
+
+const RESET_PIN_KEY = 'avani_reset_pin';
 
 function renderSettings() {
   const s = AppData.settings;
+  const hasPin = !!localStorage.getItem(RESET_PIN_KEY);
+
   document.getElementById('page-settings').innerHTML = `
     <div class="page-header"><h2 class="page-title">Settings</h2></div>
 
@@ -16,7 +20,7 @@ function renderSettings() {
         </div>
         <div class="form-grid">
           <div class="form-group"><label>Address</label><input id="s-address" value="${s.address || ''}" placeholder="Street, Area"></div>
-          <div class="form-group"><label>City</label><input id="s-city" value="${s.city || ''}" placeholder="Mangaluru"></div>
+          <div class="form-group"><label>City</label><input id="s-city" value="${s.city || ''}" placeholder="Udupi"></div>
           <div class="form-group"><label>State</label><input id="s-state" value="${s.state || ''}" placeholder="Karnataka"></div>
         </div>
         <div class="form-grid">
@@ -44,21 +48,54 @@ function renderSettings() {
     <div class="card" style="border:1.5px solid #fca5a5">
       <div class="settings-section" style="margin-bottom:0">
         <h3 style="color:var(--red)">⚠ Reset & clear data</h3>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Use these to remove test data before going live. Always export a backup first.</p>
-        <div style="display:flex;flex-direction:column;gap:12px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">
+          Protected by a 4-digit PIN. Always export a backup before resetting.
+        </p>
 
-          <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Reset billing data</div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Clears all sales bills and purchase history. Keeps your products, vendors and settings.</div>
-            <button class="btn btn-danger btn-sm" onclick="resetBillingData()">Clear bills & purchase history</button>
-          </div>
-
-          <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">Full factory reset</div>
-            <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Clears everything — bills, purchases, products and vendors. Keeps shop name and settings.</div>
-            <button class="btn btn-danger btn-sm" onclick="factoryReset()">Clear all data</button>
-          </div>
-
+        <div id="pin-setup-section">
+          ${!hasPin ? `
+            <div class="alert alert-amber" style="margin-bottom:14px">
+              <span>🔒 Set a 4-digit PIN to protect these buttons before going live.</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+              <div class="form-group" style="margin:0">
+                <label>Set reset PIN (4 digits)</label>
+                <input id="new-pin" type="password" inputmode="numeric" maxlength="4" placeholder="e.g. 1234" style="width:120px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:16px;letter-spacing:4px;text-align:center">
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>Confirm PIN</label>
+                <input id="confirm-pin" type="password" inputmode="numeric" maxlength="4" placeholder="repeat" style="width:120px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:16px;letter-spacing:4px;text-align:center">
+              </div>
+              <button class="btn btn-primary" onclick="setResetPin()">Set PIN</button>
+            </div>
+          ` : `
+            <div class="alert alert-green" style="margin-bottom:14px">
+              <span>🔒 Reset PIN is set. Enter PIN below to unlock and perform a reset.</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+              <div class="form-group" style="margin:0">
+                <label>Enter PIN to unlock</label>
+                <input id="unlock-pin" type="password" inputmode="numeric" maxlength="4" placeholder="····" style="width:120px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:20px;letter-spacing:6px;text-align:center">
+              </div>
+              <button class="btn btn-primary" onclick="unlockReset()">Unlock</button>
+              <button class="btn btn-sm" onclick="changePin()" style="margin-left:4px">Change PIN</button>
+            </div>
+            <div id="reset-buttons" style="display:none;flex-direction:column;gap:12px">
+              <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+                <div style="font-size:13px;font-weight:600;margin-bottom:4px">Reset billing data</div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Clears all sales bills and purchase history. Keeps products, vendors and settings.</div>
+                <button class="btn btn-danger btn-sm" onclick="resetBillingData()">Clear bills & purchase history</button>
+              </div>
+              <div style="background:var(--bg3);border-radius:var(--radius);padding:14px">
+                <div style="font-size:13px;font-weight:600;margin-bottom:4px">Full factory reset</div>
+                <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Clears everything — bills, purchases, products and vendors. Keeps shop name and settings.</div>
+                <button class="btn btn-danger btn-sm" onclick="factoryReset()">Clear all data</button>
+              </div>
+              <div style="margin-top:4px">
+                <button class="btn btn-sm" onclick="lockReset()">🔒 Lock again</button>
+              </div>
+            </div>
+          `}
         </div>
       </div>
     </div>
@@ -72,8 +109,53 @@ function renderSettings() {
   `;
 }
 
+function setResetPin() {
+  const pin = document.getElementById('new-pin').value.trim();
+  const confirm = document.getElementById('confirm-pin').value.trim();
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) { showToast('PIN must be exactly 4 digits'); return; }
+  if (pin !== confirm) { showToast('PINs do not match'); return; }
+  localStorage.setItem(RESET_PIN_KEY, pin);
+  showToast('PIN set successfully 🔒');
+  renderSettings();
+}
+
+function unlockReset() {
+  const entered = document.getElementById('unlock-pin').value.trim();
+  const saved = localStorage.getItem(RESET_PIN_KEY);
+  if (entered !== saved) {
+    showToast('Incorrect PIN');
+    document.getElementById('unlock-pin').value = '';
+    document.getElementById('unlock-pin').style.borderColor = 'var(--red)';
+    setTimeout(() => { const el = document.getElementById('unlock-pin'); if(el) el.style.borderColor = ''; }, 1500);
+    return;
+  }
+  const btns = document.getElementById('reset-buttons');
+  if (btns) btns.style.display = 'flex';
+  document.getElementById('unlock-pin').value = '';
+  showToast('Unlocked ✓ — reset options are now visible');
+}
+
+function lockReset() {
+  const btns = document.getElementById('reset-buttons');
+  if (btns) btns.style.display = 'none';
+  showToast('Locked 🔒');
+}
+
+function changePin() {
+  const oldPin = prompt('Enter current PIN:');
+  const saved = localStorage.getItem(RESET_PIN_KEY);
+  if (oldPin !== saved) { showToast('Incorrect current PIN'); return; }
+  const newPin = prompt('Enter new 4-digit PIN:');
+  if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) { showToast('PIN must be exactly 4 digits'); return; }
+  const confirmPin = prompt('Confirm new PIN:');
+  if (newPin !== confirmPin) { showToast('PINs do not match'); return; }
+  localStorage.setItem(RESET_PIN_KEY, newPin);
+  showToast('PIN changed successfully 🔒');
+  renderSettings();
+}
+
 function saveSettings() {
-  AppData.settings.shopName = document.getElementById('s-name').value.trim() || 'My Shop';
+  AppData.settings.shopName = document.getElementById('s-name').value.trim() || 'Avani';
   AppData.settings.phone = document.getElementById('s-phone').value.trim();
   AppData.settings.address = document.getElementById('s-address').value.trim();
   AppData.settings.city = document.getElementById('s-city').value.trim();
@@ -90,7 +172,7 @@ function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `vyapaar-backup-${today()}.json`;
+  a.download = `avani-backup-${today()}.json`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('Backup downloaded ✓');
