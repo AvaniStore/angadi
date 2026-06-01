@@ -1,5 +1,5 @@
 // ============================================================
-//  PAGE: Vendors
+//  PAGE: Vendors — with purchase bill generation
 // ============================================================
 
 function renderVendors() {
@@ -13,14 +13,11 @@ function renderVendors() {
             ${v.gstin ? `<br>GSTIN: ${v.gstin}` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-xs btn-danger" onclick="deleteVendor('${v.id}')">Delete</button>
-        </div>
+        <button class="btn btn-xs btn-danger" onclick="deleteVendor('${v.id}')">Delete</button>
       </div>
     </div>
   `).join('') || '<div class="empty-state"><p>No vendors added yet.</p></div>';
 
-  // Purchase history (last 10)
   const poRows = AppData.purchases.slice().reverse().slice(0, 15).map(po => `
     <tr>
       <td style="font-size:12px;color:var(--text3)">${fmtDate(po.date)}</td>
@@ -29,8 +26,9 @@ function renderVendors() {
       <td style="text-align:center">${po.qty}</td>
       <td>${fmt(po.costPerUnit)}</td>
       <td style="font-weight:600">${fmt(po.total)}</td>
+      <td><button class="btn btn-xs" onclick="viewPurchaseBill('${po.id}')">Bill</button></td>
     </tr>
-  `).join('') || `<tr><td colspan="6"><div class="empty-state"><p>No purchases recorded yet.</p></div></td></tr>`;
+  `).join('') || `<tr><td colspan="7"><div class="empty-state"><p>No purchases recorded yet.</p></div></td></tr>`;
 
   document.getElementById('page-vendors').innerHTML = `
     <div class="page-header">
@@ -39,6 +37,7 @@ function renderVendors() {
     </div>
 
     <div id="vendor-form-container"></div>
+    <div id="purchase-bill-preview"></div>
 
     <div style="margin-bottom:20px">${vendorCards}</div>
 
@@ -56,21 +55,24 @@ function renderVendors() {
           <label>Product *</label>
           <select id="po-product" onchange="poFillCost()">
             <option value="">— select product —</option>
-            ${AppData.products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            ${AppData.products.map(p => `<option value="${p.id}">${p.name}${p.brand ? ' ('+p.brand+')' : ''}</option>`).join('')}
           </select>
         </div>
         <div class="form-group"><label>Qty received *</label><input id="po-qty" type="number" min="1" placeholder="0"></div>
         <div class="form-group"><label>Cost per unit (₹)</label><input id="po-cost" type="number" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Invoice / Bill no.</label><input id="po-billno" placeholder="Optional"></div>
       </div>
       <div class="form-actions">
-        <button class="btn btn-primary" onclick="savePurchase()">Confirm stock-in</button>
+        <button class="btn btn-primary" onclick="savePurchase()">Confirm stock-in & generate bill</button>
       </div>
     </div>
+
+    <div id="purchase-bill-section"></div>
 
     <div class="table-wrap">
       <div style="padding:12px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border)">Purchase history</div>
       <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Vendor</th><th>Qty</th><th>Cost/unit</th><th>Total</th></tr></thead>
+        <thead><tr><th>Date</th><th>Product</th><th>Vendor</th><th>Qty</th><th>Cost/unit</th><th>Total</th><th></th></tr></thead>
         <tbody>${poRows}</tbody>
       </table>
     </div>
@@ -97,18 +99,14 @@ function openVendorForm() {
     </div>
   `;
   const container = document.getElementById('vendor-form-container');
-  if (container) {
-    container.innerHTML = formHtml;
-    document.getElementById('vf-name').focus();
-  }
+  if (container) { container.innerHTML = formHtml; document.getElementById('vf-name').focus(); }
 }
 
 function saveVendor() {
   const name = document.getElementById('vf-name').value.trim();
   if (!name) { showToast('Vendor name is required'); return; }
   AppData.vendors.push({
-    id: uid(),
-    name,
+    id: uid(), name,
     phone: document.getElementById('vf-phone').value.trim(),
     city: document.getElementById('vf-city').value.trim(),
     gstin: document.getElementById('vf-gstin').value.trim(),
@@ -138,6 +136,7 @@ function savePurchase() {
   const productId = document.getElementById('po-product').value;
   const qty = parseInt(document.getElementById('po-qty').value) || 0;
   const costPerUnit = parseFloat(document.getElementById('po-cost').value) || 0;
+  const billNo = document.getElementById('po-billno').value.trim();
 
   if (!vendorId || !productId || !qty) { showToast('Fill in all required fields'); return; }
 
@@ -148,19 +147,85 @@ function savePurchase() {
   product.stock += qty;
   if (costPerUnit > 0) product.cost = costPerUnit;
 
-  AppData.purchases.push({
-    id: uid(),
-    date: today(),
-    vendorId,
-    vendor: vendor.name,
-    productId,
-    product: product.name,
-    qty,
-    costPerUnit,
+  const purchase = {
+    id: uid(), date: today(),
+    vendorId, vendor: vendor.name,
+    productId, product: product.name,
+    brand: product.brand || '',
+    qty, costPerUnit,
     total: qty * costPerUnit,
-  });
+    billNo,
+  };
+  AppData.purchases.push(purchase);
 
   showToast(`Stock updated: ${product.name} → ${product.stock} units ✓`);
   autoSave();
+  showPurchaseBill(purchase, vendor, product);
   renderVendors();
+}
+
+function showPurchaseBill(po, vendor, product) {
+  const s = AppData.settings;
+  const billHtml = `
+    <div class="inv-head">
+      <div>
+        <div class="shop-name">${s.shopName}</div>
+        <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.6">
+          ${s.address ? s.address + '<br>' : ''}${s.city || ''}${s.state ? ', '+s.state : ''}
+          ${s.phone ? '<br>Ph: '+s.phone : ''}
+          ${s.gstin ? '<br>GSTIN: '+s.gstin : ''}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:700">PURCHASE ORDER</div>
+        <div style="font-size:12px;color:#555;margin-top:4px">
+          PO # ${po.id.toUpperCase().slice(0,10)}<br>
+          Date: ${fmtDate(po.date)}
+          ${po.billNo ? '<br>Vendor Bill #: '+po.billNo : ''}
+        </div>
+      </div>
+    </div>
+    <div style="margin:16px 0;padding:12px;background:#f9fafb;border-radius:8px;font-size:13px">
+      <strong>Vendor:</strong> ${vendor.name}<br>
+      ${vendor.city ? vendor.city + ' &nbsp;·&nbsp; ' : ''}${vendor.phone || ''}<br>
+      ${vendor.gstin ? 'GSTIN: '+vendor.gstin : ''}
+    </div>
+    <table>
+      <thead><tr><th>Product</th><th style="text-align:center">Qty</th><th style="text-align:right">Cost/unit</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>${po.product}${po.brand ? ' <span style="color:#888;font-size:11px">('+po.brand+')</span>' : ''}</td>
+          <td style="text-align:center">${po.qty}</td>
+          <td style="text-align:right">₹${fmtNum(po.costPerUnit)}</td>
+          <td style="text-align:right;font-weight:700">₹${fmtNum(po.total)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="totals" style="margin-left:auto;width:200px;margin-top:12px">
+      <div class="totals-row final"><span>Total payable</span><span>₹${fmtNum(po.total)}</span></div>
+    </div>
+    <div class="footer">Purchase record &nbsp;·&nbsp; ${s.shopName}</div>
+  `;
+
+  document.getElementById('purchase-bill-section').innerHTML = `
+    <div class="card" style="margin-bottom:16px;border:2px solid var(--accent)">
+      <div class="card-head">
+        <span class="card-title">Purchase bill generated</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="printInvoice(\`${billHtml.replace(/`/g,'\\`').replace(/\$/g,'\\$')}\`)">🖨 Print</button>
+          <button class="btn btn-sm" onclick="document.getElementById('purchase-bill-section').innerHTML=''">Close</button>
+        </div>
+      </div>
+      <div class="invoice-preview">${billHtml}</div>
+    </div>
+  `;
+  document.getElementById('purchase-bill-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function viewPurchaseBill(id) {
+  const po = AppData.purchases.find(p => p.id === id);
+  if (!po) return;
+  const vendor = AppData.vendors.find(v => v.id === po.vendorId) || { name: po.vendor, city: '', phone: '', gstin: '' };
+  const product = AppData.products.find(p => p.id === po.productId) || { name: po.product, brand: po.brand || '' };
+  showPurchaseBill(po, vendor, product);
 }
