@@ -16,6 +16,8 @@ const AppData = {
   vendors: [],
   sales: [],
   purchases: [],
+  returns: [],       // customer returns
+  adjustments: [],   // stock write-offs (expiry, damage, internal use)
 };
 
 // ---- ID & date helpers ----
@@ -85,6 +87,8 @@ function deserialize(json) {
     if (Array.isArray(d.vendors)) AppData.vendors = d.vendors;
     if (Array.isArray(d.sales)) AppData.sales = d.sales;
     if (Array.isArray(d.purchases)) AppData.purchases = d.purchases;
+    if (Array.isArray(d.returns)) AppData.returns = d.returns;
+    if (Array.isArray(d.adjustments)) AppData.adjustments = d.adjustments;
     return true;
   } catch (e) {
     console.error('Deserialize error', e);
