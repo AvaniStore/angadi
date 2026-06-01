@@ -4,11 +4,11 @@
 
 const AppData = {
   settings: {
-    shopName: 'My Shop',
-    address: '',
-    city: 'Mangaluru',
+    shopName: 'Avani — The Organic Store',
+    address: 'CPC Plaza, Opp. KSRTC Bus Stand',
+    city: 'Udupi',
     state: 'Karnataka',
-    phone: '',
+    phone: '99024 77544 / 94835 46661',
     gstin: '',
     email: '',
   },
