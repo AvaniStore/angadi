@@ -219,10 +219,6 @@ function deleteSale(id) {
 }
 
 // ---- View invoice ----
-// Shared invoice storage (also used by billing.js)
-if (typeof _currentInvoiceHtml === 'undefined') var _currentInvoiceHtml = '';
-function printCurrentInvoice() { printInvoice(_currentInvoiceHtml); }
-
 function viewSale(id) {
   const sale = AppData.sales.find(s => s.id === id);
   if (!sale) return;
