@@ -160,8 +160,9 @@ function saveBill() {
   const customer = document.getElementById('b-customer').value.trim() || 'Walk-in';
   const phone = document.getElementById('b-phone').value.trim();
   const date = document.getElementById('b-date').value || today();
+  const billNo = nextBillNumber();
 
-  const sale = { id: uid(), date, customer, phone, items: valid, sub, itemDisc, billDisc, gst: gstAmt, total, profit };
+  const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, gst: gstAmt, total, profit };
   AppData.sales.push(sale);
 
   valid.forEach(it => {
@@ -229,7 +230,7 @@ function buildInvoiceHtml(sale, rows, s) {
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:700;color:#1a2e1a">INVOICE</div>
           <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7">
-            Bill # ${sale.id.toUpperCase().slice(0,10)}<br>
+            Bill # ${sale.id}<br>
             Date: ${fmtDate(sale.date)}<br>
             Customer: <strong>${sale.customer}</strong>${sale.phone ? '<br>Ph: ' + sale.phone : ''}
           </div>
