@@ -12,7 +12,7 @@ function renderSales() {
     const returnedAmt = saleReturns.reduce((a,r) => a + (r.refund||0), 0);
     const hasReturn = saleReturns.length > 0;
     return `<tr>
-      <td style="font-size:12px;color:var(--text3)">#${s.id.toUpperCase().slice(0,8)}</td>
+      <td style="font-size:12px;color:var(--text3)">${s.id}</td>
       <td>${fmtDate(s.date)}</td>
       <td style="font-weight:500">${s.customer}${hasReturn ? ' <span class="badge badge-exp" style="font-size:10px">Return</span>' : ''}</td>
       <td style="color:var(--text3)">${s.phone || '—'}</td>
@@ -252,7 +252,7 @@ function viewSale(id) {
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:700;color:#1a2e1a">INVOICE</div>
           <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7">
-            Bill # ${sale.id.toUpperCase().slice(0,10)}<br>
+            Bill # ${sale.id}<br>
             Date: ${fmtDate(sale.date)}<br>
             Customer: <strong>${sale.customer}</strong>${sale.phone?'<br>Ph: '+sale.phone:''}
           </div>
