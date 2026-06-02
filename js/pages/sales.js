@@ -229,46 +229,61 @@ function viewSale(id) {
     const disc = base * ((it.discount||0)/100);
     const after = base - disc;
     return `<tr>
-      <td>${it.name}${it.brand?' <span style="color:#888;font-size:11px">('+it.brand+')</span>':''}${it.weight?' <span style="color:#888;font-size:11px">'+it.weight+'</span>':''}</td>
-      <td style="text-align:center">${it.qty}</td>
-      <td style="text-align:right">₹${fmtNum(it.price)}</td>
-      ${it.discount?`<td style="text-align:center;color:#dc2626">${it.discount}%</td>`:'<td style="text-align:center">—</td>'}
-      <td style="text-align:center">${it.gst}%</td>
-      <td style="text-align:right;font-weight:600">₹${fmtNum(after)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #d8e8d8">${it.name}${it.brand?' <span style="color:#888;font-size:11px">('+it.brand+')</span>':''}${it.weight?' <span style="color:#888;font-size:11px">'+it.weight+'</span>':''}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #d8e8d8;text-align:center">${it.qty}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #d8e8d8;text-align:right">₹${fmtNum(it.price)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #d8e8d8;text-align:center${it.discount?';color:#dc2626':''}">${it.discount?it.discount+'%':'—'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #d8e8d8;text-align:center">${it.gst}%</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #d8e8d8;text-align:right;font-weight:600">₹${fmtNum(after)}</td>
     </tr>`;
   }).join('');
 
   const invoiceHtml = `
-    <div class="inv-head">
-      <div>
-        <div class="shop-name">${s.shopName}</div>
-        <div style="font-size:11px;color:#4caf50;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Herbal, Organic &amp; Natural Products</div>
-        <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.6">
-          ${s.address?s.address+'<br>':''}${s.city||''}${s.state?', '+s.state:''}
-          ${s.phone?'<br>Ph: '+s.phone:''}${s.gstin?'<br>GSTIN: '+s.gstin:''}
+    <div style="font-family:Arial,sans-serif;font-size:13px;color:#1a2e1a;max-width:100%;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #3a9e3a;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#2d7a2d">${s.shopName}</div>
+          <div style="font-size:10px;color:#4caf50;letter-spacing:1px;text-transform:uppercase;margin:2px 0 4px">Herbal, Organic &amp; Natural Products</div>
+          <div style="font-size:12px;color:#555;line-height:1.6">
+            ${s.address?s.address+'<br>':''}${s.city||''}${s.state?', '+s.state:''}
+            ${s.phone?'<br>Ph: '+s.phone:''}${s.gstin?'<br>GSTIN: '+s.gstin:''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700;color:#1a2e1a">INVOICE</div>
+          <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7">
+            Bill # ${sale.id.toUpperCase().slice(0,10)}<br>
+            Date: ${fmtDate(sale.date)}<br>
+            Customer: <strong>${sale.customer}</strong>${sale.phone?'<br>Ph: '+sale.phone:''}
+          </div>
         </div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:18px;font-weight:700">INVOICE</div>
-        <div style="font-size:12px;color:#555;margin-top:4px">
-          Bill # ${sale.id.toUpperCase().slice(0,10)}<br>
-          Date: ${fmtDate(sale.date)}<br>
-          Customer: ${sale.customer}${sale.phone?'<br>Ph: '+sale.phone:''}
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px">
+        <thead>
+          <tr style="background:#edf5ed">
+            <th style="padding:8px 10px;text-align:left;font-size:12px;color:#4a5e4a;border-bottom:1px solid #d8e8d8">Item</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#4a5e4a;border-bottom:1px solid #d8e8d8">Qty</th>
+            <th style="padding:8px 10px;text-align:right;font-size:12px;color:#4a5e4a;border-bottom:1px solid #d8e8d8">Rate</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#4a5e4a;border-bottom:1px solid #d8e8d8">Disc%</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#4a5e4a;border-bottom:1px solid #d8e8d8">GST</th>
+            <th style="padding:8px 10px;text-align:right;font-size:12px;color:#4a5e4a;border-bottom:1px solid #d8e8d8">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <div style="width:220px">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5e4a"><span>Subtotal</span><span>₹${fmtNum(sale.sub||sale.total)}</span></div>
+          ${(sale.itemDisc||0)>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#dc2626"><span>Item discounts</span><span>-₹${fmtNum(sale.itemDisc)}</span></div>`:''}
+          ${(sale.billDisc||0)>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#dc2626"><span>Bill discount</span><span>-₹${fmtNum(sale.billDisc)}</span></div>`:''}
+          ${(sale.gst||0)>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5e4a"><span>GST</span><span>₹${fmtNum(sale.gst)}</span></div>`:''}
+          <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:16px;font-weight:700;color:#2d7a2d;border-top:2px solid #3a9e3a;margin-top:6px"><span>Total</span><span>₹${fmtNum(sale.total)}</span></div>
         </div>
       </div>
+      <div style="text-align:center;margin-top:20px;font-size:12px;color:#8aa08a;padding-top:12px;border-top:1px solid #d8e8d8">
+        Thank you for your purchase! &nbsp;·&nbsp; ${s.shopName}
+      </div>
     </div>
-    <table>
-      <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:center">Disc%</th><th style="text-align:center">GST</th><th style="text-align:right">Amount</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div class="totals" style="margin-left:auto;width:240px;margin-top:12px">
-      <div class="totals-row"><span>Subtotal</span><span>₹${fmtNum(sale.sub||sale.total)}</span></div>
-      ${(sale.itemDisc||0)>0?`<div class="totals-row"><span>Item discounts</span><span style="color:#dc2626">-₹${fmtNum(sale.itemDisc)}</span></div>`:''}
-      ${(sale.billDisc||0)>0?`<div class="totals-row"><span>Bill discount</span><span style="color:#dc2626">-₹${fmtNum(sale.billDisc)}</span></div>`:''}
-      ${(sale.gst||0)>0?`<div class="totals-row"><span>GST</span><span>₹${fmtNum(sale.gst)}</span></div>`:''}
-      <div class="totals-row final"><span>Total</span><span>₹${fmtNum(sale.total)}</span></div>
-    </div>
-    <div class="footer">Thank you for your purchase! &nbsp;·&nbsp; ${s.shopName}</div>
   `;
 
   document.getElementById('sale-detail').innerHTML = `
