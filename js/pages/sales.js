@@ -219,6 +219,10 @@ function deleteSale(id) {
 }
 
 // ---- View invoice ----
+// Shared invoice storage (also used by billing.js)
+if (typeof _currentInvoiceHtml === 'undefined') var _currentInvoiceHtml = '';
+function printCurrentInvoice() { printInvoice(_currentInvoiceHtml); }
+
 function viewSale(id) {
   const sale = AppData.sales.find(s => s.id === id);
   if (!sale) return;
@@ -286,16 +290,21 @@ function viewSale(id) {
     </div>
   `;
 
+  // Store for printing
+  _currentInvoiceHtml = invoiceHtml;
+
   document.getElementById('sale-detail').innerHTML = `
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-head">
-        <span class="card-title">Invoice — ${sale.customer}</span>
+    <div style="background:#fff;border:1px solid #d8e8d8;border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:600;color:#1a2e1a">Invoice — ${sale.customer}</span>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="printInvoice(\`${invoiceHtml.replace(/`/g,'\\`').replace(/\$/g,'\\$')}\`)">🖨 Print</button>
+          <button class="btn btn-primary btn-sm" onclick="printCurrentInvoice()">🖨 Print</button>
           <button class="btn btn-sm" onclick="document.getElementById('sale-detail').innerHTML=''">Close</button>
         </div>
       </div>
-      <div class="invoice-preview">${invoiceHtml}</div>
+      <div style="background:#fff;border:1px solid #d8e8d8;border-radius:8px;padding:20px;overflow:hidden">
+        ${invoiceHtml}
+      </div>
     </div>
   `;
   document.getElementById('sale-detail').scrollIntoView({ behavior: 'smooth' });
