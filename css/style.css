@@ -135,19 +135,17 @@ tr:hover td { background: var(--bg3); }
 .bill-summary-row.total { font-size: 16px; font-weight: 700; color: var(--text); border-top: 1px solid var(--border2); margin-top: 8px; padding-top: 10px; }
 
 /* INVOICE PRINT */
-.invoice-preview { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; font-size: 13px; }
-.invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--text); }
-.invoice-shop-name { font-size: 20px; font-weight: 700; }
-.invoice-shop-details { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.6; }
-.invoice-meta { text-align: right; font-size: 12px; color: var(--text2); }
-.invoice-meta strong { color: var(--text); font-size: 14px; }
-.invoice-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-.invoice-table th { background: var(--bg3); padding: 8px 10px; text-align: left; font-size: 12px; color: var(--text2); }
-.invoice-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
-.invoice-totals { margin-left: auto; width: 220px; }
-.invoice-totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
-.invoice-totals-row.total { font-weight: 700; font-size: 15px; border-top: 1px solid var(--border2); margin-top: 6px; padding-top: 8px; }
-.invoice-footer { text-align: center; margin-top: 24px; font-size: 12px; color: var(--text3); padding-top: 16px; border-top: 1px solid var(--border); }
+.invoice-preview { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; font-size: 13px; overflow: hidden; }
+.invoice-preview .inv-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 3px solid var(--accent); flex-wrap: wrap; gap: 12px; }
+.invoice-preview .shop-name { font-size: 18px; font-weight: 700; color: var(--accent-dark); }
+.invoice-preview table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; min-width: unset; }
+.invoice-preview th { background: var(--bg3); padding: 8px 10px; text-align: left; font-size: 12px; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.invoice-preview td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.invoice-preview tr:hover td { background: transparent; }
+.invoice-preview .totals { display: block; margin-left: auto; width: 220px; margin-top: 12px; }
+.invoice-preview .totals-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
+.invoice-preview .totals-row.final { font-weight: 700; font-size: 15px; border-top: 2px solid var(--accent); margin-top: 6px; padding-top: 8px; color: var(--accent-dark); }
+.invoice-preview .footer { text-align: center; margin-top: 20px; font-size: 12px; color: var(--text3); padding-top: 14px; border-top: 1px solid var(--border); }
 
 /* TOAST */
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: white; padding: 10px 20px; border-radius: 30px; font-size: 13px; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 9999; white-space: nowrap; }
