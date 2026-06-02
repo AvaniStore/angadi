@@ -61,6 +61,14 @@ function confirmDelete(msg) {
 }
 
 // ---- Print invoice ----
+// Shared storage for current invoice HTML — used by billing.js and sales.js
+let _currentInvoiceHtml = '';
+
+function printCurrentInvoice() {
+  if (!_currentInvoiceHtml) { showToast('No invoice to print'); return; }
+  printInvoice(_currentInvoiceHtml);
+}
+
 function printInvoice(html) {
   const frame = document.getElementById('print-frame');
   frame.innerHTML = `<style>
