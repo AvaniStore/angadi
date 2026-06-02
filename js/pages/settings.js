@@ -26,6 +26,7 @@ function renderSettings() {
         <div class="form-grid">
           <div class="form-group"><label>GSTIN</label><input id="s-gstin" value="${s.gstin || ''}" placeholder="29AABCS1234K1Z5"></div>
           <div class="form-group"><label>Email (optional)</label><input id="s-email" type="email" value="${s.email || ''}" placeholder="shop@email.com"></div>
+          <div class="form-group"><label>Last bill number</label><input id="s-billno" type="number" value="${s.lastBillNumber || 0}" placeholder="0"><small style="color:var(--text3);font-size:11px">Next bill will be AVN-${String((s.lastBillNumber||0)+1).padStart(3,'0')}</small></div>
         </div>
         <div class="form-actions">
           <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
@@ -162,6 +163,7 @@ function saveSettings() {
   AppData.settings.state = document.getElementById('s-state').value.trim();
   AppData.settings.gstin = document.getElementById('s-gstin').value.trim();
   AppData.settings.email = document.getElementById('s-email').value.trim();
+  AppData.settings.lastBillNumber = parseInt(document.getElementById('s-billno').value) || 0;
   updateSidebarShopInfo();
   autoSave();
   showToast('Settings saved ✓');
