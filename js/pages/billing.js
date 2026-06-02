@@ -175,6 +175,9 @@ function saveBill() {
   billItems = [];
 }
 
+// Store current invoice HTML for printing
+let _currentInvoiceHtml = '';
+
 function showInvoice(sale) {
   const s = AppData.settings;
   const rows = sale.items.map(it => {
@@ -191,19 +194,26 @@ function showInvoice(sale) {
     </tr>`;
   }).join('');
 
-  const invoiceHtml = buildInvoiceHtml(sale, rows, s);
+  _currentInvoiceHtml = buildInvoiceHtml(sale, rows, s);
+
   document.getElementById('invoice-section').innerHTML = `
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">Invoice preview</span>
+    <div style="background:#fff;border:1px solid #d8e8d8;border-radius:12px;padding:16px;margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <span style="font-size:14px;font-weight:600;color:#1a2e1a">Invoice preview</span>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="printInvoice(\`${invoiceHtml.replace(/`/g,'\\`').replace(/\$/g,'\\$')}\`)">🖨 Print</button>
+          <button class="btn btn-primary btn-sm" onclick="printCurrentInvoice()">🖨 Print</button>
           <button class="btn btn-sm" onclick="renderBilling()">New bill</button>
         </div>
       </div>
-      <div class="invoice-preview">${invoiceHtml}</div>
+      <div style="background:#fff;border:1px solid #d8e8d8;border-radius:8px;padding:20px;overflow:hidden">
+        ${_currentInvoiceHtml}
+      </div>
     </div>
   `;
+}
+
+function printCurrentInvoice() {
+  printInvoice(_currentInvoiceHtml);
 }
 
 function buildInvoiceHtml(sale, rows, s) {
