@@ -175,9 +175,6 @@ function saveBill() {
   billItems = [];
 }
 
-// Store current invoice HTML for printing
-let _currentInvoiceHtml = '';
-
 function showInvoice(sale) {
   const s = AppData.settings;
   const rows = sale.items.map(it => {
