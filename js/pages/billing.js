@@ -129,11 +129,20 @@ function saveBill() {
   if (!valid.length) { showToast('Add at least one product'); return; }
 
   const stockErrors = [];
+  const zeroCostItems = [];
   valid.forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
-    if (p && p.stock < it.qty) stockErrors.push(`${p.name} (only ${p.stock} in stock)`);
+    if (p) {
+      if (p.stock < it.qty) stockErrors.push(`${p.name} (only ${p.stock} in stock)`);
+      // Always use latest cost from product to ensure accurate profit
+      it.cost = p.cost || 0;
+      if (!p.cost || p.cost === 0) zeroCostItems.push(p.name);
+    }
   });
   if (stockErrors.length) { showToast('Stock issue: ' + stockErrors.join(', ')); return; }
+  if (zeroCostItems.length) {
+    if (!confirm(`Cost price is ₹0 for: ${zeroCostItems.join(', ')}.\nProfit will show as ₹0 for these items.\n\nContinue? (You can fix cost price in Inventory later)`)) return;
+  }
 
   let sub = 0, itemDisc = 0, gstAmt = 0;
   valid.forEach(it => {
