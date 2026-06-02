@@ -11,6 +11,8 @@ const AppData = {
     phone: '99024 77544 / 94835 46661',
     gstin: '',
     email: '',
+    lastBillNumber: 0,   // sequential bill counter
+    lastPONumber: 0,     // sequential PO counter
   },
   products: [],
   vendors: [],
@@ -23,6 +25,16 @@ const AppData = {
 // ---- ID & date helpers ----
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function nextBillNumber() {
+  AppData.settings.lastBillNumber = (AppData.settings.lastBillNumber || 0) + 1;
+  return 'AVN-' + String(AppData.settings.lastBillNumber).padStart(3, '0');
+}
+
+function nextPONumber() {
+  AppData.settings.lastPONumber = (AppData.settings.lastPONumber || 0) + 1;
+  return 'PO-' + String(AppData.settings.lastPONumber).padStart(3, '0');
 }
 function today() {
   return new Date().toISOString().slice(0, 10);
