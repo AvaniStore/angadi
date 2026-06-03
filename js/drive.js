@@ -2,20 +2,38 @@
 //  DRIVE — Save and load data from Google Drive
 // ============================================================
 
-let driveFileId = null;
+const DRIVE_FILE_ID_KEY = 'avani_drive_file_id';
+
+let driveFileId = localStorage.getItem(DRIVE_FILE_ID_KEY) || null;
 
 async function loadFromDrive() {
   try {
-    // Search for existing file
+    // If we have a stored file ID, try it directly first
+    if (driveFileId) {
+      const content = await downloadDriveFile(driveFileId);
+      if (content) {
+        deserialize(content);
+        showToast('Data loaded from Google Drive ✓');
+        return;
+      } else {
+        // Stored ID failed — clear it and search
+        driveFileId = null;
+        localStorage.removeItem(DRIVE_FILE_ID_KEY);
+      }
+    }
+
+    // Search for existing file by name
     const resp = await gapi.client.drive.files.list({
       q: `name='${CONFIG.DRIVE_FILE_NAME}' and trashed=false`,
       fields: 'files(id, name, modifiedTime)',
       spaces: 'drive',
+      orderBy: 'modifiedTime desc',
     });
 
     const files = resp.result.files;
     if (files && files.length > 0) {
       driveFileId = files[0].id;
+      localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId); // Cache it
       const content = await downloadDriveFile(driveFileId);
       if (content) {
         deserialize(content);
@@ -26,7 +44,13 @@ async function loadFromDrive() {
     }
   } catch (e) {
     console.error('Drive load error', e);
-    showToast('Could not load from Drive. Working offline.');
+    // Fall back to local storage
+    const hasLocal = loadLocal();
+    if (hasLocal) {
+      showToast('Loaded from local storage (offline)');
+    } else {
+      showToast('Could not load data. Check connection.');
+    }
   }
 }
 
@@ -36,6 +60,7 @@ async function downloadDriveFile(fileId) {
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+    if (!resp.ok) return null;
     return await resp.text();
   } catch (e) {
     console.error('Download error', e);
@@ -54,11 +79,10 @@ async function saveToGoogle() {
 
   try {
     const content = serialize();
-    const blob = new Blob([content], { type: 'application/json' });
 
     if (driveFileId) {
       // Update existing file
-      await fetch(
+      const resp = await fetch(
         `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
         {
           method: 'PATCH',
@@ -69,6 +93,13 @@ async function saveToGoogle() {
           body: content,
         }
       );
+      if (!resp.ok) {
+        // File might have been deleted — create a new one
+        driveFileId = null;
+        localStorage.removeItem(DRIVE_FILE_ID_KEY);
+        await saveToGoogle();
+        return;
+      }
     } else {
       // Create new file
       const metadata = {
@@ -77,7 +108,7 @@ async function saveToGoogle() {
       };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', blob);
+      form.append('file', new Blob([content], { type: 'application/json' }));
 
       const resp = await fetch(
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
@@ -89,8 +120,10 @@ async function saveToGoogle() {
       );
       const result = await resp.json();
       driveFileId = result.id;
+      localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId); // Cache file ID
     }
 
+    saveLocal(); // Keep local in sync too
     if (statusEl) {
       statusEl.textContent = 'Saved ✓';
       setTimeout(() => { statusEl.textContent = ''; }, 3000);
@@ -109,6 +142,9 @@ async function refreshFromDrive() {
   const statusEl = document.getElementById('save-status');
   if (statusEl) statusEl.textContent = 'Refreshing...';
   showToast('Fetching latest data from Drive...');
+  // Clear cached ID to force a fresh search
+  driveFileId = null;
+  localStorage.removeItem(DRIVE_FILE_ID_KEY);
   await loadFromDrive();
   saveLocal();
   renderCurrentPage();
@@ -119,10 +155,11 @@ async function refreshFromDrive() {
 
 // Auto-save after any data change
 function autoSave() {
+  saveLocal(); // Always save locally immediately
   clearTimeout(window._autoSaveTimer);
-  window._autoSaveTimer = setTimeout(() => {
-    if (accessToken) saveToGoogle();
-  }, 2000);
-  const statusEl = document.getElementById('save-status');
-  if (statusEl) statusEl.textContent = 'Unsaved changes';
+  if (accessToken) {
+    window._autoSaveTimer = setTimeout(() => saveToGoogle(), 2000);
+    const statusEl = document.getElementById('save-status');
+    if (statusEl) statusEl.textContent = 'Unsaved changes';
+  }
 }
