@@ -70,14 +70,18 @@ async function onSignedIn() {
     document.getElementById('user-info-sidebar').textContent = currentUser.email || currentUser.name || '';
   }
 
-  // Load data from Drive
+  // Always load from Drive first — Drive is the single source of truth
+  // especially when multiple users share the same account
   showToast('Loading your data...');
-  const hasLocal = loadLocal(); // Load local first for instant display
-  if (hasLocal) { renderCurrentPage(); updateSidebarShopInfo(); }
-  await loadFromDrive(); // Then sync from Drive
-  saveLocal(); // Keep local copy in sync
+  const statusEl = document.getElementById('save-status');
+  if (statusEl) statusEl.textContent = 'Syncing from Drive...';
+
+  await loadFromDrive();
+  saveLocal(); // Update local cache with latest from Drive
   renderCurrentPage();
   updateSidebarShopInfo();
+
+  if (statusEl) statusEl.textContent = '';
 }
 
 function handleSignOut() {
@@ -88,10 +92,12 @@ function handleSignOut() {
   currentUser = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
-  // Reset data
+  // Clear in-memory data but keep localStorage as offline fallback
   AppData.products = [];
   AppData.vendors = [];
   AppData.sales = [];
   AppData.purchases = [];
+  AppData.returns = [];
+  AppData.adjustments = [];
   showToast('Signed out');
 }
