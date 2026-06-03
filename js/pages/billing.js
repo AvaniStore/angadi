@@ -58,11 +58,20 @@ function renderBilling() {
 
 function renderBillRows() {
   const html = billItems.map((it, i) => `
-    <div style="display:grid;grid-template-columns:1fr 70px 90px 70px 80px 32px;gap:8px;align-items:center;margin-bottom:6px">
-      <select onchange="billPickProduct(${i}, this.value)" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:inherit;background:var(--bg2);color:var(--text);width:100%">
-        <option value="">— select —</option>
-        ${AppData.products.map(p => `<option value="${p.id}" ${p.id === it.pid ? 'selected' : ''}>${p.name}${p.brand ? ' ('+p.brand+')' : ''}${p.weight||p.weightOther ? ' - '+(p.weightOther||p.weight) : ''}</option>`).join('')}
-      </select>
+    <div style="display:grid;grid-template-columns:1fr 70px 90px 70px 80px 32px;gap:8px;align-items:center;margin-bottom:6px" id="bill-row-${i}">
+      <div style="position:relative">
+        <input
+          id="bill-search-${i}"
+          type="text"
+          placeholder="Search product..."
+          value="${it.name ? it.name + (it.brand ? ' ('+it.brand+')' : '') : ''}"
+          oninput="billSearchProduct(${i}, this.value)"
+          onfocus="billShowDropdown(${i})"
+          onblur="setTimeout(() => billHideDropdown(${i}), 200)"
+          autocomplete="off"
+          style="padding:6px 8px;border:1px solid ${it.pid ? 'var(--accent)' : 'var(--border2)'};border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+        <div id="bill-dropdown-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.15)"></div>
+      </div>
       <input type="number" min="1" step="0.01" value="${it.qty}" onchange="billSetQty(${i}, this.value)" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
       <input type="number" step="0.01" value="${it.price || ''}" onchange="billSetPrice(${i}, this.value)" placeholder="0.00" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
       <input type="number" min="0" max="100" step="0.1" value="${it.discount || 0}" onchange="billSetDiscount(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
@@ -76,6 +85,59 @@ function renderBillRows() {
   updateBillSummary();
 }
 
+function billSearchProduct(i, query) {
+  const dropdown = document.getElementById(`bill-dropdown-${i}`);
+  if (!dropdown) return;
+
+  if (!query.trim()) {
+    billHideDropdown(i);
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const matches = AppData.products.filter(p => {
+    return p.name.toLowerCase().includes(q) ||
+      (p.brand && p.brand.toLowerCase().includes(q)) ||
+      (p.cat && p.cat.toLowerCase().includes(q));
+  }).slice(0, 15); // max 15 results
+
+  if (!matches.length) {
+    dropdown.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text3)">No products found</div>`;
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  dropdown.innerHTML = matches.map(p => `
+    <div
+      onmousedown="billPickProduct(${i}, '${p.id}')"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='var(--bg3)'"
+      onmouseout="this.style.background=''"
+    >
+      <div>
+        <span style="font-weight:500">${p.name}</span>
+        ${p.brand ? `<span style="color:var(--text3);font-size:11px"> (${p.brand})</span>` : ''}
+        ${p.stock <= 0 ? `<span style="color:var(--red);font-size:11px"> — Out of stock</span>` : ''}
+      </div>
+      <span style="color:var(--accent-dark);font-weight:600;font-size:13px">₹${p.sell}</span>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function billShowDropdown(i) {
+  const input = document.getElementById(`bill-search-${i}`);
+  if (input && input.value.trim()) billSearchProduct(i, input.value);
+}
+
+function billHideDropdown(i) {
+  const dropdown = document.getElementById(`bill-dropdown-${i}`);
+  if (dropdown) dropdown.style.display = 'none';
+  // If no product selected, clear the input
+  const input = document.getElementById(`bill-search-${i}`);
+  if (input && billItems[i] && !billItems[i].pid) input.value = '';
+}
+
 function calcItemTotal(it) {
   const base = (parseFloat(it.price) || 0) * (parseFloat(it.qty) || 0);
   const disc = base * ((parseFloat(it.discount) || 0) / 100);
@@ -87,7 +149,17 @@ function billPickProduct(i, pid) {
   billItems[i] = p
     ? { pid: p.id, name: p.name, brand: p.brand || '', weight: p.weightOther || p.weight || '', qty: billItems[i].qty || 1, price: p.sell, gst: p.gst, cost: p.cost, mrp: p.mrp || 0, discount: 0 }
     : { pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 };
-  renderBillRows();
+
+  // Update input text and hide dropdown
+  const input = document.getElementById(`bill-search-${i}`);
+  const dropdown = document.getElementById(`bill-dropdown-${i}`);
+  if (input && p) input.value = p.name + (p.brand ? ' (' + p.brand + ')' : '');
+  if (dropdown) dropdown.style.display = 'none';
+
+  // Update border to show selected
+  if (input) input.style.borderColor = p ? 'var(--accent)' : 'var(--border2)';
+
+  updateBillSummary();
 }
 function billSetQty(i, v) { billItems[i].qty = parseFloat(v) || 1; renderBillRows(); }
 function billSetPrice(i, v) { billItems[i].price = parseFloat(v) || 0; renderBillRows(); }
