@@ -103,6 +103,20 @@ async function saveToGoogle() {
   }
 }
 
+// Manual refresh — pulls latest from Drive, overwrites local
+async function refreshFromDrive() {
+  if (!accessToken) { showToast('Please sign in first'); return; }
+  const statusEl = document.getElementById('save-status');
+  if (statusEl) statusEl.textContent = 'Refreshing...';
+  showToast('Fetching latest data from Drive...');
+  await loadFromDrive();
+  saveLocal();
+  renderCurrentPage();
+  updateSidebarShopInfo();
+  if (statusEl) statusEl.textContent = '';
+  showToast('Refreshed from Google Drive ✓');
+}
+
 // Auto-save after any data change
 function autoSave() {
   clearTimeout(window._autoSaveTimer);
