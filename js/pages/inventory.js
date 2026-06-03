@@ -205,6 +205,7 @@ function saveProduct() {
     AppData.products.push(product);
     showToast('Product added ✓');
   }
+  AppData.products.sort((a, b) => a.name.localeCompare(b.name));
   editingProductId = null;
   autoSave();
   renderInventory();
