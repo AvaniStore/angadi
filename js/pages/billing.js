@@ -31,10 +31,14 @@ function renderBilling() {
       <button class="btn btn-sm" onclick="addBillRow()" style="margin-top:6px">+ Add item</button>
 
       <div class="divider"></div>
-      <div class="form-grid" style="max-width:300px">
+      <div class="form-grid" style="max-width:500px">
         <div class="form-group">
           <label>Overall bill discount (₹)</label>
           <input id="b-discount" type="number" step="0.01" placeholder="0.00" value="0" oninput="updateBillSummary()">
+        </div>
+        <div class="form-group">
+          <label>Final amount collected (₹) <span style="font-size:11px;color:var(--text3)">— override total if rounding</span></label>
+          <input id="b-final" type="number" step="0.01" placeholder="Leave blank to use calculated total" oninput="updateBillSummary()">
         </div>
       </div>
 
@@ -43,7 +47,8 @@ function renderBilling() {
         <div class="bill-summary-row"><span>Item discounts</span><span id="bs-item-disc" style="color:var(--red)">-₹0.00</span></div>
         <div class="bill-summary-row"><span>Bill discount</span><span id="bs-bill-disc" style="color:var(--red)">-₹0.00</span></div>
         <div class="bill-summary-row"><span>GST</span><span id="bs-gst">₹0.00</span></div>
-        <div class="bill-summary-row total"><span>Total</span><span id="bs-total">₹0.00</span></div>
+        <div class="bill-summary-row"><span>Calculated total</span><span id="bs-calc">₹0.00</span></div>
+        <div class="bill-summary-row total"><span>Amount collected</span><span id="bs-total">₹0.00</span></div>
         <div class="bill-summary-row" style="margin-top:4px"><span style="color:var(--accent)">Estimated profit</span><span id="bs-profit" style="color:var(--accent)">₹0.00</span></div>
       </div>
       <div class="form-actions" style="margin-top:14px">
@@ -183,12 +188,31 @@ function updateBillSummary() {
   const profit = valid.reduce((acc, it) => acc + (calcItemTotal(it) - (parseFloat(it.cost) || 0) * (parseFloat(it.qty) || 0)), 0) - billDisc;
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const calcTotal = Math.max(0, sub - itemDisc - billDisc + gstAmt);
+  const finalEl = document.getElementById('b-final');
+  const finalAmt = finalEl && finalEl.value ? parseFloat(finalEl.value) : null;
+  const displayTotal = finalAmt !== null ? finalAmt : calcTotal;
+  const roundOff = finalAmt !== null ? finalAmt - calcTotal : 0;
+
   set('bs-sub', fmt(sub));
   set('bs-item-disc', '-' + fmt(itemDisc));
   set('bs-bill-disc', '-' + fmt(billDisc));
   set('bs-gst', fmt(gstAmt));
-  set('bs-total', fmt(Math.max(0, total)));
-  set('bs-profit', fmt(profit));
+  set('bs-calc', fmt(calcTotal));
+  set('bs-total', fmt(displayTotal));
+
+  // Show round off difference
+  const calcRow = document.getElementById('bs-calc')?.parentElement;
+  if (calcRow) calcRow.style.display = finalAmt !== null ? '' : 'none';
+
+  // Adjust profit for round-off difference
+  const adjustedProfit = profit + roundOff;
+  set('bs-profit', fmt(adjustedProfit));
+
+  // Highlight final amount field if it differs from calc
+  if (finalEl) {
+    finalEl.style.borderColor = finalAmt !== null && Math.abs(roundOff) > 0 ? 'var(--accent)' : 'var(--border2)';
+  }
 }
 
 function clearBill() {
@@ -226,15 +250,19 @@ function saveBill() {
     gstAmt += afterDisc * ((parseFloat(it.gst) || 0) / 100);
   });
   const billDisc = parseFloat(document.getElementById('b-discount')?.value) || 0;
-  const total = Math.max(0, sub - itemDisc - billDisc + gstAmt);
-  const profit = valid.reduce((acc, it) => acc + (calcItemTotal(it) - (parseFloat(it.cost) || 0) * (parseFloat(it.qty) || 0)), 0) - billDisc;
+  const calcTotal = Math.max(0, sub - itemDisc - billDisc + gstAmt);
+  const finalEl = document.getElementById('b-final');
+  const finalAmt = finalEl && finalEl.value ? parseFloat(finalEl.value) : null;
+  const total = finalAmt !== null ? finalAmt : calcTotal;
+  const roundOff = finalAmt !== null ? finalAmt - calcTotal : 0;
+  const profit = valid.reduce((acc, it) => acc + (calcItemTotal(it) - (parseFloat(it.cost) || 0) * (parseFloat(it.qty) || 0)), 0) - billDisc + roundOff;
 
   const customer = document.getElementById('b-customer').value.trim() || 'Walk-in';
   const phone = document.getElementById('b-phone').value.trim();
   const date = document.getElementById('b-date').value || today();
   const billNo = nextBillNumber();
 
-  const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, gst: gstAmt, total, profit };
+  const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, gst: gstAmt, calcTotal, roundOff, total, profit };
   AppData.sales.push(sale);
 
   valid.forEach(it => {
@@ -327,6 +355,7 @@ function buildInvoiceHtml(sale, rows, s) {
           ${(sale.itemDisc||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#dc2626"><span>Item discounts</span><span>-₹${fmtNum(sale.itemDisc)}</span></div>` : ''}
           ${(sale.billDisc||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#dc2626"><span>Bill discount</span><span>-₹${fmtNum(sale.billDisc)}</span></div>` : ''}
           ${(sale.gst||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5e4a"><span>GST</span><span>₹${fmtNum(sale.gst)}</span></div>` : ''}
+          ${sale.roundOff ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:${sale.roundOff>0?'#dc2626':'#3a9e3a'}"><span>Round off</span><span>${sale.roundOff>0?'-':'+'} ₹${fmtNum(Math.abs(sale.roundOff))}</span></div>` : ''}
           <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:16px;font-weight:700;color:#2d7a2d;border-top:2px solid #3a9e3a;margin-top:6px"><span>Total</span><span>₹${fmtNum(sale.total)}</span></div>
         </div>
       </div>
