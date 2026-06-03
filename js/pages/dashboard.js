@@ -18,10 +18,30 @@ function renderDashboard() {
   const expired = AppData.products.filter(p => p.expiry && new Date(p.expiry) < now);
 
   let alerts = '';
-  if (outItems.length) alerts += `<div class="alert alert-red"><span>⚠ Out of stock: ${outItems.map(p => `<strong>${p.name}</strong>`).join(', ')}</span></div>`;
-  if (lowItems.length) alerts += `<div class="alert alert-amber"><span>⚡ Low stock: ${lowItems.map(p => `<strong>${p.name}</strong> (${p.stock} left)`).join(', ')}</span></div>`;
-  if (expired.length) alerts += `<div class="alert alert-red"><span>🗓 Expired products: ${expired.map(p => `<strong>${p.name}</strong>`).join(', ')}</span></div>`;
-  if (expSoon.length) alerts += `<div class="alert alert-pink"><span>📅 Expiring soon: ${expSoon.map(p => `<strong>${p.name}</strong>`).join(', ')}</span></div>`;
+  if (outItems.length) alerts += `
+    <div class="alert alert-red" style="align-items:center">
+      <span>⚠ <strong>${outItems.length} item${outItems.length!==1?'s':''} out of stock</strong>
+      &nbsp;·&nbsp; ${outItems.slice(0,3).map(p=>`${p.name}`).join(', ')}${outItems.length>3?` +${outItems.length-3} more`:''}
+      &nbsp;<a href="#" onclick="showPage('inventory')" style="color:var(--red);font-weight:600;white-space:nowrap">View all →</a></span>
+    </div>`;
+  if (lowItems.length) alerts += `
+    <div class="alert alert-amber" style="align-items:center">
+      <span>⚡ <strong>${lowItems.length} item${lowItems.length!==1?'s':''} running low</strong>
+      &nbsp;·&nbsp; ${lowItems.slice(0,3).map(p=>`${p.name} (${p.stock} left)`).join(', ')}${lowItems.length>3?` +${lowItems.length-3} more`:''}
+      &nbsp;<a href="#" onclick="showPage('inventory')" style="color:var(--amber);font-weight:600;white-space:nowrap">View all →</a></span>
+    </div>`;
+  if (expired.length) alerts += `
+    <div class="alert alert-red" style="align-items:center">
+      <span>🗓 <strong>${expired.length} product${expired.length!==1?'s':''} expired</strong>
+      &nbsp;·&nbsp; ${expired.slice(0,3).map(p=>p.name).join(', ')}${expired.length>3?` +${expired.length-3} more`:''}
+      &nbsp;<a href="#" onclick="showPage('inventory')" style="color:var(--red);font-weight:600;white-space:nowrap">View all →</a></span>
+    </div>`;
+  if (expSoon.length) alerts += `
+    <div class="alert alert-pink" style="align-items:center">
+      <span>📅 <strong>${expSoon.length} product${expSoon.length!==1?'s':''} expiring soon</strong>
+      &nbsp;·&nbsp; ${expSoon.slice(0,3).map(p=>p.name).join(', ')}${expSoon.length>3?` +${expSoon.length-3} more`:''}
+      &nbsp;<a href="#" onclick="showPage('inventory')" style="color:#9d174d;font-weight:600;white-space:nowrap">View all →</a></span>
+    </div>`;
 
   const recentSales = todaySales.slice(-5).reverse();
   const recentHtml = recentSales.length
