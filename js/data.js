@@ -95,7 +95,7 @@ function deserialize(json) {
   try {
     const d = JSON.parse(json);
     if (d.settings) AppData.settings = { ...AppData.settings, ...d.settings };
-    if (Array.isArray(d.products)) AppData.products = d.products;
+    if (Array.isArray(d.products)) AppData.products = d.products.sort((a, b) => a.name.localeCompare(b.name));
     if (Array.isArray(d.vendors)) AppData.vendors = d.vendors;
     if (Array.isArray(d.sales)) AppData.sales = d.sales;
     if (Array.isArray(d.purchases)) AppData.purchases = d.purchases;
