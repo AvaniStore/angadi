@@ -92,17 +92,26 @@ function renderVendors() {
     </div>
   `;
 
-  if (!poItems.length) poItems = [{ pid: '', qty: 1, cost: 0 }];
+  if (!poItems.length) poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }];
   renderPORows();
 }
 
 function renderPORows() {
   const html = poItems.map((it, i) => `
     <div style="display:grid;grid-template-columns:1fr 80px 100px 32px;gap:8px;align-items:center;margin-bottom:6px">
-      <select onchange="poPickProduct(${i}, this.value)" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;font-family:inherit;background:var(--bg2);color:var(--text);width:100%">
-        <option value="">— select product —</option>
-        ${AppData.products.map(p => `<option value="${p.id}" ${p.id === it.pid ? 'selected' : ''}>${p.name}${p.brand ? ' ('+p.brand+')' : ''}</option>`).join('')}
-      </select>
+      <div style="position:relative">
+        <input
+          id="po-search-${i}"
+          type="text"
+          placeholder="Search product..."
+          value="${it.name ? it.name + (it.brand ? ' ('+it.brand+')' : '') : ''}"
+          oninput="poSearchProduct(${i}, this.value)"
+          onfocus="poShowDropdown(${i})"
+          onblur="setTimeout(() => poHideDropdown(${i}), 200)"
+          autocomplete="off"
+          style="padding:6px 8px;border:1px solid ${it.pid ? 'var(--accent)' : 'var(--border2)'};border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+        <div id="po-dropdown-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.15)"></div>
+      </div>
       <input type="number" min="1" value="${it.qty}" onchange="poSetQty(${i}, this.value)"
         style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;text-align:center;width:100%;background:var(--bg2);color:var(--text)">
       <input type="number" step="0.01" value="${it.cost || ''}" placeholder="0.00" onchange="poSetCost(${i}, this.value)"
@@ -115,17 +124,80 @@ function renderPORows() {
   updatePOTotal();
 }
 
+function poSearchProduct(i, query) {
+  const dropdown = document.getElementById(`po-dropdown-${i}`);
+  if (!dropdown) return;
+  if (!query.trim()) { poHideDropdown(i); return; }
+
+  const q = query.toLowerCase();
+  const matches = AppData.products.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.brand && p.brand.toLowerCase().includes(q)) ||
+    (p.cat && p.cat.toLowerCase().includes(q))
+  ).slice(0, 15);
+
+  if (!matches.length) {
+    dropdown.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text3)">No products found</div>`;
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  dropdown.innerHTML = matches.map(p => `
+    <div
+      onmousedown="poPickProduct(${i}, '${p.id}')"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='var(--bg3)'"
+      onmouseout="this.style.background=''">
+      <div>
+        <span style="font-weight:500">${p.name}</span>
+        ${p.brand ? `<span style="color:var(--text3);font-size:11px"> (${p.brand})</span>` : ''}
+        <span style="color:var(--text3);font-size:11px"> — stock: ${p.stock}</span>
+      </div>
+      <span style="color:var(--text3);font-size:12px">cost: ₹${p.cost||0}</span>
+    </div>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function poShowDropdown(i) {
+  const input = document.getElementById(`po-search-${i}`);
+  if (input && input.value.trim()) poSearchProduct(i, input.value);
+}
+
+function poHideDropdown(i) {
+  const dropdown = document.getElementById(`po-dropdown-${i}`);
+  if (dropdown) dropdown.style.display = 'none';
+  const input = document.getElementById(`po-search-${i}`);
+  if (input && poItems[i] && !poItems[i].pid) input.value = '';
+}
+
 function poPickProduct(i, pid) {
   const p = AppData.products.find(x => x.id === pid);
+  if (!p) return;
   poItems[i].pid = pid;
-  if (p) poItems[i].cost = p.cost || 0;
-  renderPORows();
+  poItems[i].name = p.name;
+  poItems[i].brand = p.brand || '';
+  poItems[i].cost = p.cost || 0;
+
+  const input = document.getElementById(`po-search-${i}`);
+  const dropdown = document.getElementById(`po-dropdown-${i}`);
+  if (input) { input.value = p.name + (p.brand ? ' (' + p.brand + ')' : ''); input.style.borderColor = 'var(--accent)'; }
+  if (dropdown) dropdown.style.display = 'none';
+
+  // Update cost field
+  const costInput = input?.closest('div')?.parentElement?.querySelector('input[type="number"]:last-of-type');
+  const rowEl = document.getElementById(`po-rows`)?.children[i];
+  if (rowEl) {
+    const inputs = rowEl.querySelectorAll('input[type="number"]');
+    if (inputs[1]) inputs[1].value = p.cost || '';
+  }
+  updatePOTotal();
 }
 function poSetQty(i, v) { poItems[i].qty = parseInt(v) || 1; updatePOTotal(); }
 function poSetCost(i, v) { poItems[i].cost = parseFloat(v) || 0; updatePOTotal(); }
-function addPORow() { poItems.push({ pid: '', qty: 1, cost: 0 }); renderPORows(); }
+function addPORow() { poItems.push({ pid: '', name: '', brand: '', qty: 1, cost: 0 }); renderPORows(); }
 function removePORow(i) { poItems.splice(i, 1); if (!poItems.length) addPORow(); else renderPORows(); }
-function clearPO() { poItems = [{ pid: '', qty: 1, cost: 0 }]; renderVendors(); }
+function clearPO() { poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }]; renderVendors(); }
 
 function updatePOTotal() {
   const total = poItems.reduce((a, it) => a + (it.qty || 0) * (it.cost || 0), 0);
