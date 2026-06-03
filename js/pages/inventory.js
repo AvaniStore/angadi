@@ -7,6 +7,52 @@ let editingProductId = null;
 const CATEGORIES = ['Grocery', 'Home Care', 'Cosmetics', 'Snacks', 'Vegetables', 'Other'];
 const WEIGHTS = ['100g', '200g', '250g', '500g', '1kg', '200ml', '250ml', '500ml', '1000ml', 'pieces', 'Other'];
 
+function filterInventoryTable(search) {
+  const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
+  const q = (search || '').toLowerCase();
+
+  const filtered = AppData.products.filter(p => {
+    const matchSearch = !q || p.name.toLowerCase().includes(q) ||
+      (p.brand || '').toLowerCase().includes(q) ||
+      (p.cat || '').toLowerCase().includes(q);
+    const matchCat = !catFilter || p.cat === catFilter;
+    return matchSearch && matchCat;
+  });
+
+  const rows = filtered.map(p => {
+    const margin = p.sell > 0 ? Math.round(((p.sell - p.cost) / p.sell) * 100) : 0;
+    const marginColor = margin > 20 ? 'var(--accent-dark)' : margin > 10 ? 'var(--amber)' : 'var(--red)';
+    const weightLabel = p.weightOther ? p.weightOther : (p.weight || '—');
+    const isVeg = p.cat === 'Vegetables';
+    return `<tr>
+      <td>
+        <span style="font-weight:500">${p.name}</span>${expiryTag(p.expiry)}
+        ${isVeg ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:10px;margin-left:4px">Veg</span>' : ''}
+        ${p.brand ? `<div style="font-size:11px;color:var(--text3);margin-top:1px">${p.brand}</div>` : ''}
+      </td>
+      <td style="color:var(--text2)">${p.cat || '—'}</td>
+      <td style="font-size:12px;color:var(--text3)">${weightLabel}</td>
+      <td>${fmt(p.cost)}</td>
+      <td>${p.mrp ? fmt(p.mrp) : '—'}</td>
+      <td>${fmt(p.sell)}</td>
+      <td style="color:var(--text3)">${p.gst}%</td>
+      <td>${stockBadge(p)}</td>
+      <td style="font-size:12px;color:var(--text3)">${fmtDate(p.expiry)}</td>
+      <td style="font-weight:600;color:${marginColor}">${margin}%</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs" onclick="openProductForm('${p.id}')">Edit</button>
+          <button class="btn btn-xs" style="color:var(--amber);border-color:#fcd34d" onclick="openStockAdjust('${p.id}')">±</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteProduct('${p.id}')">Del</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="11"><div class="empty-state"><p>No products match your search.</p></div></td></tr>`;
+
+  const tbody = document.querySelector('#page-inventory .table-wrap tbody');
+  if (tbody) tbody.innerHTML = rows;
+}
+
 function renderInventory() {
   const search = (document.getElementById('inv-search') || {}).value || '';
   const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
@@ -60,8 +106,8 @@ function renderInventory() {
     <div id="product-form-container"></div>
 
     <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <input id="inv-search" type="text" placeholder="Search by name, brand..." style="flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)" oninput="renderInventory()" value="${search}">
-      <select id="inv-cat-filter" onchange="renderInventory()" style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+      <input id="inv-search" type="text" placeholder="Search by name, brand, category..." style="flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)" oninput="filterInventoryTable(this.value)" value="${search}">
+      <select id="inv-cat-filter" onchange="filterInventoryTable(document.getElementById('inv-search').value)" style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
         <option value="">All categories</option>
         ${CATEGORIES.map(c => `<option value="${c}" ${c === catFilter ? 'selected' : ''}>${c}</option>`).join('')}
       </select>
