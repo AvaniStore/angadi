@@ -77,7 +77,7 @@ function renderBillRows() {
           style="padding:6px 8px;border:1px solid ${it.pid ? 'var(--accent)' : 'var(--border2)'};border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
         <div id="bill-dropdown-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.15)"></div>
       </div>
-      <input type="number" min="0.01" step="1" value="${it.qty}" oninput="billSetQty(${i}, this.value)" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
+      <input type="number" min="1" step="1" value="${it.qty}" oninput="billSetQty(${i}, this.value)" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
       <input type="number" step="0.01" value="${it.price || ''}" onchange="billSetPrice(${i}, this.value)" placeholder="0.00" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
       <input type="number" min="0" max="100" step="0.1" value="${it.discount || 0}" onchange="billSetDiscount(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
       <span id="bill-amt-${i}" style="font-size:13px;font-weight:600;display:flex;align-items:center">${it.pid ? fmt(calcItemTotal(it)) : '—'}</span>
@@ -155,15 +155,24 @@ function billPickProduct(i, pid) {
     ? { pid: p.id, name: p.name, brand: p.brand || '', weight: p.weightOther || p.weight || '', qty: billItems[i].qty || 1, price: p.sell, gst: p.gst, cost: p.cost, mrp: p.mrp || 0, discount: 0 }
     : { pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 };
 
-  // Re-render rows so amount column shows correctly with qty=1
-  renderBillRows();
-
-  // Restore search input text and focus after re-render
+  // Update search input text
   const input = document.getElementById(`bill-search-${i}`);
-  if (input && p) {
-    input.value = p.name + (p.brand ? ' (' + p.brand + ')' : '');
-    input.style.borderColor = 'var(--accent)';
+  const dropdown = document.getElementById(`bill-dropdown-${i}`);
+  if (input && p) { input.value = p.name + (p.brand ? ' (' + p.brand + ')' : ''); input.style.borderColor = 'var(--accent)'; }
+  if (dropdown) dropdown.style.display = 'none';
+
+  // Update price field
+  const row = document.getElementById(`bill-row-${i}`);
+  if (row && p) {
+    const priceInput = row.querySelectorAll('input[type="number"]')[1];
+    if (priceInput) priceInput.value = p.sell;
   }
+
+  // Update amount span directly
+  const amtEl = document.getElementById(`bill-amt-${i}`);
+  if (amtEl) amtEl.textContent = p ? fmt(calcItemTotal(billItems[i])) : '—';
+
+  updateBillSummary();
 }
 function billSetQty(i, v) {
   billItems[i].qty = parseFloat(v) || 1;
