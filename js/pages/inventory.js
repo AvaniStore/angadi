@@ -4,7 +4,7 @@
 
 let editingProductId = null;
 
-const CATEGORIES = ['Grocery', 'Home Care', 'Cosmetics', 'Snacks', 'Vegetables', 'Other'];
+const CATEGORIES = ['Grocery', 'Home Care', 'Cosmetics', 'Snacks', 'Vegetables', 'Fruits', 'Other'];
 const WEIGHTS = ['100g', '200g', '250g', '500g', '1kg', '200ml', '250ml', '500ml', '1000ml', 'pieces', 'Other'];
 
 function filterInventoryTable(search) {
@@ -99,7 +99,7 @@ function renderInventory() {
       <h2 class="page-title">Inventory</h2>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="openProductForm(null)">+ Add product</button>
-        <button class="btn" onclick="openVegPriceUpdate()" title="Update vegetable prices">🥦 Update veg prices</button>
+        <button class="btn" onclick="openVegPriceUpdate()" title="Update vegetable & fruit prices">🥦 Update veg & fruit prices</button>
       </div>
     </div>
 
@@ -267,8 +267,8 @@ function deleteProduct(id) {
 
 // ---- Vegetable weekly price update ----
 function openVegPriceUpdate() {
-  const vegs = AppData.products.filter(p => p.cat === 'Vegetables');
-  if (!vegs.length) { showToast('No vegetables in inventory. Add them first.'); return; }
+  const vegs = AppData.products.filter(p => p.cat === 'Vegetables' || p.cat === 'Fruits');
+  if (!vegs.length) { showToast('No vegetables or fruits in inventory.'); return; }
 
   const rows = vegs.map(v => `
     <div style="display:grid;grid-template-columns:1fr 90px 90px;gap:8px;align-items:center;margin-bottom:8px">
@@ -284,8 +284,8 @@ function openVegPriceUpdate() {
 
   document.getElementById('product-form-container').innerHTML = `
     <div class="card" style="margin-bottom:16px;border:2px solid var(--accent)">
-      <div class="card-title">🥦 Weekly vegetable price update</div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Update cost and selling prices for all vegetables at once.</p>
+      <div class="card-title">🥦 Weekly vegetable & fruit price update</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Update cost and selling prices for all vegetables and fruits at once.</p>
       <div style="display:grid;grid-template-columns:1fr 90px 90px;gap:8px;margin-bottom:8px">
         <span style="font-size:11px;color:var(--text3)">Vegetable</span>
         <span style="font-size:11px;color:var(--text3)">Cost (₹)</span>
