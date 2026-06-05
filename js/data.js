@@ -27,9 +27,22 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-function nextBillNumber() {
-  AppData.settings.lastBillNumber = (AppData.settings.lastBillNumber || 0) + 1;
-  return 'AVN-' + String(AppData.settings.lastBillNumber).padStart(3, '0');
+function nextBillNumber(suffix) {
+  const now = new Date();
+  const dateStr = String(now.getDate()).padStart(2,'0') + String(now.getMonth()+1).padStart(2,'0');
+  const lastDate = AppData.settings.lastBillDate || '';
+
+  // Reset sequence if new day
+  if (lastDate !== dateStr) {
+    AppData.settings.lastBillDate = dateStr;
+    AppData.settings.lastBillSeq = 0;
+  }
+  AppData.settings.lastBillSeq = (AppData.settings.lastBillSeq || 0) + 1;
+  AppData.settings.lastBillNumber = (AppData.settings.lastBillNumber || 0) + 1; // keep overall counter
+
+  const seq = String(AppData.settings.lastBillSeq).padStart(3, '0');
+  const base = `AVN-${dateStr}-${seq}`;
+  return suffix ? `${base}-${suffix.toUpperCase()}` : base;
 }
 
 function nextPONumber() {
@@ -104,13 +117,10 @@ function mergeOfflineData(localData) {
       AppData.sales = [...AppData.sales, ...offlineSales].sort((a, b) => a.date.localeCompare(b.date));
       AppData.purchases = [...AppData.purchases, ...offlinePurchases];
 
-      // Keep bill number counter accurate
+      // Keep bill counter accurate for new format
       offlineSales.forEach(s => {
         if (s.id && s.id.startsWith('AVN-')) {
-          const num = parseInt(s.id.replace('AVN-', ''));
-          if (num > (AppData.settings.lastBillNumber || 0)) {
-            AppData.settings.lastBillNumber = num;
-          }
+          AppData.settings.lastBillNumber = (AppData.settings.lastBillNumber || 0) + 1;
         }
       });
 
