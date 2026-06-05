@@ -8,23 +8,12 @@ let tokenClient = null;
 let accessToken = null;
 
 function loadGoogleLibraries() {
-  // Load GSI (identity)
+  // Load GSI (identity) only — no gapi needed, we use direct fetch for Drive
   const gsi = document.createElement('script');
   gsi.src = 'https://accounts.google.com/gsi/client';
-  gsi.onload = () => { gisInited = true; };
+  gsi.onload = () => { gisInited = true; console.log('GSI loaded'); };
+  gsi.onerror = () => console.error('GSI failed to load');
   document.head.appendChild(gsi);
-
-  // Load GAPI (drive)
-  const gapi = document.createElement('script');
-  gapi.src = 'https://apis.google.com/js/api.js';
-  gapi.onload = () => {
-    window.gapi.load('client', async () => {
-      await window.gapi.client.init({
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-      });
-    });
-  };
-  document.head.appendChild(gapi);
 }
 
 function handleGoogleSignIn() {
@@ -43,7 +32,6 @@ function handleGoogleSignIn() {
         return;
       }
       accessToken = tokenResponse.access_token;
-      gapi.client.setToken({ access_token: accessToken });
       await fetchUserInfo();
       await onSignedIn();
     },
