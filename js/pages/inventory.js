@@ -282,10 +282,11 @@ function openVegPriceUpdate() {
       <div style="position:sticky;top:52px;background:var(--bg2);z-index:10;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px">
         <input id="veg-search" type="text" placeholder="🔍 Search vegetable or fruit..." oninput="filterVegPriceRows(this.value)"
           style="width:100%;padding:8px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);margin-bottom:8px">
-        <div style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;padding:0 4px">
+        <div style="display:grid;grid-template-columns:1fr 90px 90px 90px;gap:8px;padding:0 4px">
           <span style="font-size:11px;color:var(--text3);font-weight:500">Product</span>
           <span style="font-size:11px;color:var(--text3);font-weight:500">Cost (₹)</span>
           <span style="font-size:11px;color:var(--text3);font-weight:500">Selling (₹)</span>
+          <span style="font-size:11px;color:var(--text3);font-weight:500">Stock</span>
         </div>
       </div>
 
@@ -304,12 +305,15 @@ function openVegPriceUpdate() {
 }
 
 function vegPriceRow(v) {
-  return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0;border-bottom:1px solid var(--border)">
-    <span style="font-size:13px">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3)"> (${v.brand})</span>` : ''} <span style="font-size:10px;background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span></span>
+  return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:grid;grid-template-columns:1fr 90px 90px 90px;gap:8px;align-items:center;margin-bottom:6px;padding:6px 4px;border-bottom:1px solid var(--border)">
+    <span style="font-size:13px">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3)"> (${v.brand})</span>` : ''} <span style="font-size:10px;background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span><div style="font-size:11px;color:var(--text3)">Current stock: ${v.stock}</div></span>
     <input type="number" id="vp-cost-${v.id}" value="${v.cost||''}" placeholder="${v.cost||0}"
       onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
       style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
     <input type="number" id="vp-sell-${v.id}" value="${v.sell||''}" placeholder="${v.sell||0}"
+      onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
+      style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+    <input type="number" id="vp-stock-${v.id}" value="${v.stock||''}" placeholder="0"
       onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
       style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
   </div>`;
@@ -332,11 +336,13 @@ function saveVegPrices() {
   vegs.forEach(v => {
     const costEl = document.getElementById(`vp-cost-${v.id}`);
     const sellEl = document.getElementById(`vp-sell-${v.id}`);
+    const stockEl = document.getElementById(`vp-stock-${v.id}`);
     if (costEl && costEl.value !== '') v.cost = parseFloat(costEl.value) || v.cost;
     if (sellEl && sellEl.value !== '') v.sell = parseFloat(sellEl.value) || v.sell;
+    if (stockEl && stockEl.value !== '') v.stock = parseFloat(stockEl.value) || v.stock;
   });
   autoSave();
-  showToast('Prices updated ✓');
+  showToast('Prices and stock updated ✓');
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
 }
