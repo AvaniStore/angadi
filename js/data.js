@@ -86,7 +86,42 @@ function calcProfit(items) {
   }, 0);
 }
 
-// ---- Serialize / deserialize for Drive ----
+// ---- Merge offline data with Drive data ----
+// Called when coming back online — keeps offline bills that aren't in Drive yet
+function mergeOfflineData(localData) {
+  try {
+    if (!localData) return { sales: 0, purchases: 0 };
+
+    // Get IDs already loaded from Drive (now in AppData)
+    const driveSaleIds = new Set(AppData.sales.map(s => s.id));
+    const drivePurchaseIds = new Set(AppData.purchases.map(p => p.id));
+
+    // Find offline-only sales and purchases not yet in Drive
+    const offlineSales = (localData.sales || []).filter(s => !driveSaleIds.has(s.id));
+    const offlinePurchases = (localData.purchases || []).filter(p => !drivePurchaseIds.has(p.id));
+
+    if (offlineSales.length > 0 || offlinePurchases.length > 0) {
+      AppData.sales = [...AppData.sales, ...offlineSales].sort((a, b) => a.date.localeCompare(b.date));
+      AppData.purchases = [...AppData.purchases, ...offlinePurchases];
+
+      // Keep bill number counter accurate
+      offlineSales.forEach(s => {
+        if (s.id && s.id.startsWith('AVN-')) {
+          const num = parseInt(s.id.replace('AVN-', ''));
+          if (num > (AppData.settings.lastBillNumber || 0)) {
+            AppData.settings.lastBillNumber = num;
+          }
+        }
+      });
+
+      console.log(`Merged ${offlineSales.length} offline bills, ${offlinePurchases.length} offline purchases`);
+      return { sales: offlineSales.length, purchases: offlinePurchases.length };
+    }
+  } catch (e) {
+    console.error('Merge error', e);
+  }
+  return { sales: 0, purchases: 0 };
+}
 function serialize() {
   return JSON.stringify(AppData, null, 2);
 }
