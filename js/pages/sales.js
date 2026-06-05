@@ -22,6 +22,7 @@ function renderSales() {
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn btn-xs" onclick="viewSale('${s.id}')">View</button>
+          <button class="btn btn-xs" style="color:var(--blue);border-color:#93c5fd" onclick="editSale('${s.id}')">Edit</button>
           <button class="btn btn-xs" style="color:var(--amber);border-color:#fcd34d" onclick="openReturn('${s.id}')">↩ Return</button>
           <button class="btn btn-xs btn-danger" onclick="deleteSale('${s.id}')">Del</button>
         </div>
@@ -219,6 +220,45 @@ function deleteSale(id) {
 }
 
 // ---- View invoice ----
+function editSale(id) {
+  const sale = AppData.sales.find(s => s.id === id);
+  if (!sale) return;
+  if (!confirm(`Edit bill ${sale.id} for ${sale.customer}?\n\nThis will reopen the bill for editing. The original bill will be replaced when you save.`)) return;
+
+  // Restore stock from original bill
+  (sale.items || []).forEach(it => {
+    const p = AppData.products.find(x => x.id === it.pid);
+    if (p) p.stock += it.qty;
+  });
+
+  // Remove the old bill
+  AppData.sales = AppData.sales.filter(s => s.id !== id);
+  // Roll back bill number counter
+  if (AppData.settings.lastBillNumber > 0) AppData.settings.lastBillNumber--;
+
+  // Load items into billing page
+  billItems = (sale.items || []).map(it => ({ ...it }));
+
+  // Navigate to billing page
+  showPage('billing', document.querySelector('[data-page="billing"]'));
+
+  // Pre-fill customer details after render
+  setTimeout(() => {
+    const cust = document.getElementById('b-customer');
+    const phone = document.getElementById('b-phone');
+    const date = document.getElementById('b-date');
+    const disc = document.getElementById('b-discount');
+    const delivery = document.getElementById('b-delivery');
+    if (cust) cust.value = sale.customer || '';
+    if (phone) phone.value = sale.phone || '';
+    if (date) date.value = sale.date || today();
+    if (disc) disc.value = sale.billDisc || 0;
+    if (delivery) delivery.value = sale.delivery || 0;
+    renderBillRows();
+    showToast(`Editing bill ${sale.id} — make changes and save`);
+  }, 100);
+}
+
 function viewSale(id) {
   const sale = AppData.sales.find(s => s.id === id);
   if (!sale) return;
