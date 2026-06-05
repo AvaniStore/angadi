@@ -98,9 +98,9 @@ async function loadFromDrive() {
     const fileId = await findDriveFile();
 
     if (!fileId) {
-      // No Drive file — load local as fallback
       const hasLocal = loadLocal();
       showToast(hasLocal ? 'Loaded from local storage' : 'Starting fresh');
+      showReconnectBtn(true);
       return;
     }
 
@@ -108,8 +108,13 @@ async function loadFromDrive() {
     if (!driveContent) {
       const hasLocal = loadLocal();
       showToast(hasLocal ? 'Drive error — loaded locally' : 'Could not load data');
+      showReconnectBtn(true);
       return;
     }
+
+    showReconnectBtn(false);
+    _driveConnected = true;
+    updateOnlineStatus();
 
     // Get local snapshot before applying Drive data
     const localContent = localStorage.getItem(LOCAL_KEY);
@@ -194,6 +199,9 @@ async function saveToGoogle() {
     }
 
     saveLocal();
+    showReconnectBtn(false);
+    _driveConnected = true;
+    updateOnlineStatus();
     if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
     console.log('Saved to Drive:', driveFileId);
   } catch(e) {
@@ -220,7 +228,21 @@ async function refreshFromDrive() {
   showToast('Refreshed ✓');
 }
 
-// ---- Debug: show sync info ----
+// ---- Reconnect to Drive (when token expired) ----
+async function reconnectDrive() {
+  showToast('Reconnecting to Google Drive...');
+  // Re-request token
+  if (tokenClient) {
+    tokenClient.requestAccessToken({ prompt: '' });
+  } else {
+    showToast('Please sign out and sign back in');
+  }
+}
+
+function showReconnectBtn(show) {
+  const btn = document.getElementById('reconnect-btn');
+  if (btn) btn.style.display = show ? '' : 'none';
+}
 function showSyncDebug() {
   const info = [
     `Drive file ID: ${driveFileId || 'none'}`,
