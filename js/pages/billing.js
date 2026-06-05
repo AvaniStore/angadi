@@ -35,15 +35,15 @@ function renderBilling() {
       <div class="form-grid" style="max-width:600px">
         <div class="form-group">
           <label>Overall bill discount (₹)</label>
-          <input id="b-discount" type="number" step="0.01" placeholder="0.00" value="0" oninput="updateBillSummary()">
+          <input id="b-discount" type="number" step="1" min="0" placeholder="0" value="0" oninput="updateBillSummary()">
         </div>
         <div class="form-group">
           <label>Delivery charges (₹)</label>
-          <input id="b-delivery" type="number" step="0.01" placeholder="0.00" value="0" oninput="updateBillSummary()">
+          <input id="b-delivery" type="number" step="1" min="0" placeholder="0" value="0" oninput="updateBillSummary()">
         </div>
         <div class="form-group">
           <label>Final amount collected (₹) <span style="font-size:11px;color:var(--text3)">— override if rounding</span></label>
-          <input id="b-final" type="number" step="0.01" placeholder="Leave blank to use calculated total" oninput="updateBillSummary()">
+          <input id="b-final" type="number" step="1" min="0" placeholder="Leave blank to use calculated total" oninput="updateBillSummary()">
         </div>
       </div>
 
@@ -84,11 +84,12 @@ function renderBillRows() {
         <div id="bill-dropdown-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);max-height:200px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.15)"></div>
       </div>
       <input type="number" value="${it.qty}"
+        step="${it.pid && (AppData.products.find(p=>p.id===it.pid)?.cat === 'Vegetables' || AppData.products.find(p=>p.id===it.pid)?.cat === 'Fruits') ? '0.1' : '1'}"
+        min="${it.pid && (AppData.products.find(p=>p.id===it.pid)?.cat === 'Vegetables' || AppData.products.find(p=>p.id===it.pid)?.cat === 'Fruits') ? '0.1' : '1'}"
         oninput="billSetQty(${i}, this.value)"
-        onkeydown="if(event.key==='ArrowUp'){event.preventDefault();billSetQty(${i},${(parseFloat(it.qty)||1)+1});this.value=${(parseFloat(it.qty)||1)+1}}else if(event.key==='ArrowDown'){event.preventDefault();const nv=Math.max(1,${(parseFloat(it.qty)||1)-1});billSetQty(${i},nv);this.value=nv}"
         style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
-      <input type="number" step="0.01" value="${it.price || ''}" onchange="billSetPrice(${i}, this.value)" placeholder="0.00" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
-      <input type="number" min="0" max="100" step="0.1" value="${it.discount || 0}" onchange="billSetDiscount(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
+      <input type="number" step="1" min="0" value="${it.price || ''}" oninput="billSetPrice(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+      <input type="number" min="0" max="100" step="1" value="${it.discount || 0}" oninput="billSetDiscount(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
       <span id="bill-amt-${i}" style="font-size:13px;font-weight:600;display:flex;align-items:center">${it.pid ? fmt(calcItemTotal(it)) : '—'}</span>
       <button onclick="removeBillRow(${i})" style="padding:4px 6px;border:1px solid #fca5a5;border-radius:var(--radius);background:transparent;color:var(--red);cursor:pointer;font-size:12px">✕</button>
     </div>
@@ -164,24 +165,11 @@ function billPickProduct(i, pid) {
     ? { pid: p.id, name: p.name, brand: p.brand || '', weight: p.weightOther || p.weight || '', qty: billItems[i].qty || 1, price: p.sell, gst: p.gst, cost: p.cost, mrp: p.mrp || 0, discount: 0 }
     : { pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 };
 
-  // Update search input text
-  const input = document.getElementById(`bill-search-${i}`);
-  const dropdown = document.getElementById(`bill-dropdown-${i}`);
-  if (input && p) { input.value = p.name + (p.brand ? ' (' + p.brand + ')' : ''); input.style.borderColor = 'var(--accent)'; }
-  if (dropdown) dropdown.style.display = 'none';
-
-  // Update price field
-  const row = document.getElementById(`bill-row-${i}`);
-  if (row && p) {
-    const priceInput = row.querySelectorAll('input[type="number"]')[1];
-    if (priceInput) priceInput.value = p.sell;
-  }
-
-  // Update amount span directly
-  const amtEl = document.getElementById(`bill-amt-${i}`);
-  if (amtEl) amtEl.textContent = p ? fmt(calcItemTotal(billItems[i])) : '—';
-
-  updateBillSummary();
+  // Re-render rows to update qty step (0.1 for veg/fruits, 1 for others)
+  renderBillRows();
+  // Restore search input after re-render
+  const inputAfter = document.getElementById(`bill-search-${i}`);
+  if (inputAfter && p) { inputAfter.value = p.name + (p.brand ? ' (' + p.brand + ')' : ''); inputAfter.style.borderColor = 'var(--accent)'; }
 }
 function billSetQty(i, v) {
   billItems[i].qty = parseFloat(v) || 1;
