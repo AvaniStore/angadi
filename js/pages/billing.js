@@ -31,13 +31,17 @@ function renderBilling() {
       <button class="btn btn-sm" onclick="addBillRow()" style="margin-top:6px">+ Add item</button>
 
       <div class="divider"></div>
-      <div class="form-grid" style="max-width:500px">
+      <div class="form-grid" style="max-width:600px">
         <div class="form-group">
           <label>Overall bill discount (₹)</label>
           <input id="b-discount" type="number" step="0.01" placeholder="0.00" value="0" oninput="updateBillSummary()">
         </div>
         <div class="form-group">
-          <label>Final amount collected (₹) <span style="font-size:11px;color:var(--text3)">— override total if rounding</span></label>
+          <label>Delivery charges (₹)</label>
+          <input id="b-delivery" type="number" step="0.01" placeholder="0.00" value="0" oninput="updateBillSummary()">
+        </div>
+        <div class="form-group">
+          <label>Final amount collected (₹) <span style="font-size:11px;color:var(--text3)">— override if rounding</span></label>
           <input id="b-final" type="number" step="0.01" placeholder="Leave blank to use calculated total" oninput="updateBillSummary()">
         </div>
       </div>
@@ -46,6 +50,7 @@ function renderBilling() {
         <div class="bill-summary-row"><span>Subtotal</span><span id="bs-sub">₹0.00</span></div>
         <div class="bill-summary-row"><span>Item discounts</span><span id="bs-item-disc" style="color:var(--red)">-₹0.00</span></div>
         <div class="bill-summary-row"><span>Bill discount</span><span id="bs-bill-disc" style="color:var(--red)">-₹0.00</span></div>
+        <div class="bill-summary-row"><span>Delivery charges</span><span id="bs-delivery" style="color:var(--blue)">₹0.00</span></div>
         <div class="bill-summary-row"><span>GST</span><span id="bs-gst">₹0.00</span></div>
         <div class="bill-summary-row"><span>Calculated total</span><span id="bs-calc">₹0.00</span></div>
         <div class="bill-summary-row total"><span>Amount collected</span><span id="bs-total">₹0.00</span></div>
@@ -210,11 +215,11 @@ function updateBillSummary() {
     gstAmt += afterDisc * ((parseFloat(it.gst) || 0) / 100);
   });
   const billDisc = parseFloat(document.getElementById('b-discount')?.value) || 0;
-  const total = sub - itemDisc - billDisc + gstAmt;
+  const delivery = parseFloat(document.getElementById('b-delivery')?.value) || 0;
+  const calcTotal = Math.max(0, sub - itemDisc - billDisc + gstAmt + delivery);
   const profit = valid.reduce((acc, it) => acc + (calcItemTotal(it) - (parseFloat(it.cost) || 0) * (parseFloat(it.qty) || 0)), 0) - billDisc;
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const calcTotal = Math.max(0, sub - itemDisc - billDisc + gstAmt);
   const finalEl = document.getElementById('b-final');
   const finalAmt = finalEl && finalEl.value ? parseFloat(finalEl.value) : null;
   const displayTotal = finalAmt !== null ? finalAmt : calcTotal;
@@ -223,9 +228,14 @@ function updateBillSummary() {
   set('bs-sub', fmt(sub));
   set('bs-item-disc', '-' + fmt(itemDisc));
   set('bs-bill-disc', '-' + fmt(billDisc));
+  set('bs-delivery', fmt(delivery));
   set('bs-gst', fmt(gstAmt));
   set('bs-calc', fmt(calcTotal));
   set('bs-total', fmt(displayTotal));
+
+  // Show/hide delivery row
+  const deliveryRow = document.getElementById('bs-delivery')?.parentElement;
+  if (deliveryRow) deliveryRow.style.display = delivery > 0 ? '' : 'none';
 
   // Show round off difference
   const calcRow = document.getElementById('bs-calc')?.parentElement;
@@ -250,20 +260,23 @@ function saveBill() {
   const valid = billItems.filter(it => it.pid && it.qty > 0);
   if (!valid.length) { showToast('Add at least one product'); return; }
 
-  const stockErrors = [];
+  const stockWarnings = [];
   const zeroCostItems = [];
   valid.forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
     if (p) {
-      if (p.stock < it.qty) stockErrors.push(`${p.name} (only ${p.stock} in stock)`);
-      // Always use latest cost from product to ensure accurate profit
+      if (p.stock < it.qty) stockWarnings.push(`${p.name} (stock: ${p.stock}, billing: ${it.qty})`);
       it.cost = p.cost || 0;
       if (!p.cost || p.cost === 0) zeroCostItems.push(p.name);
     }
   });
-  if (stockErrors.length) { showToast('Stock issue: ' + stockErrors.join(', ')); return; }
+
+  // Warn for out of stock but allow to proceed
+  if (stockWarnings.length) {
+    if (!confirm(`⚠ Some items have insufficient stock:\n${stockWarnings.join('\n')}\n\nContinue anyway?`)) return;
+  }
   if (zeroCostItems.length) {
-    if (!confirm(`Cost price is ₹0 for: ${zeroCostItems.join(', ')}.\nProfit will show as ₹0 for these items.\n\nContinue? (You can fix cost price in Inventory later)`)) return;
+    if (!confirm(`Cost price is ₹0 for: ${zeroCostItems.join(', ')}.\nProfit will show as ₹0 for these items.\n\nContinue?`)) return;
   }
 
   let sub = 0, itemDisc = 0, gstAmt = 0;
@@ -276,7 +289,8 @@ function saveBill() {
     gstAmt += afterDisc * ((parseFloat(it.gst) || 0) / 100);
   });
   const billDisc = parseFloat(document.getElementById('b-discount')?.value) || 0;
-  const calcTotal = Math.max(0, sub - itemDisc - billDisc + gstAmt);
+  const delivery = parseFloat(document.getElementById('b-delivery')?.value) || 0;
+  const calcTotal = Math.max(0, sub - itemDisc - billDisc + gstAmt + delivery);
   const finalEl = document.getElementById('b-final');
   const finalAmt = finalEl && finalEl.value ? parseFloat(finalEl.value) : null;
   const total = finalAmt !== null ? finalAmt : calcTotal;
@@ -288,7 +302,7 @@ function saveBill() {
   const date = document.getElementById('b-date').value || today();
   const billNo = nextBillNumber();
 
-  const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, gst: gstAmt, calcTotal, roundOff, total, profit };
+  const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, delivery, gst: gstAmt, calcTotal, roundOff, total, profit };
   AppData.sales.push(sale);
 
   valid.forEach(it => {
@@ -380,6 +394,7 @@ function buildInvoiceHtml(sale, rows, s) {
           <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5e4a"><span>Subtotal</span><span>₹${fmtNum(sale.sub)}</span></div>
           ${(sale.itemDisc||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#dc2626"><span>Item discounts</span><span>-₹${fmtNum(sale.itemDisc)}</span></div>` : ''}
           ${(sale.billDisc||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#dc2626"><span>Bill discount</span><span>-₹${fmtNum(sale.billDisc)}</span></div>` : ''}
+          ${(sale.delivery||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#2563eb"><span>Delivery charges</span><span>+₹${fmtNum(sale.delivery)}</span></div>` : ''}
           ${(sale.gst||0)>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#4a5e4a"><span>GST</span><span>₹${fmtNum(sale.gst)}</span></div>` : ''}
           ${sale.roundOff ? `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:${sale.roundOff>0?'#dc2626':'#3a9e3a'}"><span>Round off</span><span>${sale.roundOff>0?'-':'+'} ₹${fmtNum(Math.abs(sale.roundOff))}</span></div>` : ''}
           <div style="display:flex;justify-content:space-between;padding:8px 0 4px;font-size:16px;font-weight:700;color:#2d7a2d;border-top:2px solid #3a9e3a;margin-top:6px"><span>Total</span><span>₹${fmtNum(sale.total)}</span></div>
