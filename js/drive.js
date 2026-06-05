@@ -5,7 +5,7 @@
 const DRIVE_FILE_ID_KEY = 'avani_drive_file_id';
 let driveFileId = localStorage.getItem(DRIVE_FILE_ID_KEY) || null;
 
-// ---- Core: find the Drive file ----
+// ---- Find the one true Drive file ----
 async function findDriveFile() {
   const resp = await gapi.client.drive.files.list({
     q: `name='${CONFIG.DRIVE_FILE_NAME}' and trashed=false`,
@@ -15,65 +15,81 @@ async function findDriveFile() {
   });
   const files = resp.result.files || [];
 
-  // Delete duplicates, keep only the newest
+  // Clean up duplicates — keep only the newest
   if (files.length > 1) {
+    console.log(`Found ${files.length} data files — cleaning up duplicates`);
     for (let i = 1; i < files.length; i++) {
       try {
         await fetch(`https://www.googleapis.com/drive/v3/files/${files[i].id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${accessToken}` }
         });
-      } catch(e) {}
+      } catch(e) { console.warn('Could not delete duplicate', e); }
     }
   }
 
   if (files.length > 0) {
     driveFileId = files[0].id;
     localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId);
+    console.log(`Using Drive file: ${driveFileId} (modified: ${files[0].modifiedTime})`);
     return driveFileId;
   }
+  driveFileId = null;
+  localStorage.removeItem(DRIVE_FILE_ID_KEY);
   return null;
 }
 
 // ---- Smart merge: combine Drive + local, never lose bills ----
 function smartMerge(driveJson, localJson) {
+  const result = { merged: null, newSales: 0, newPOs: 0 };
   try {
     const drive = JSON.parse(driveJson);
-    const local = localJson ? JSON.parse(localJson) : null;
+    result.merged = drive;
 
-    // Start with Drive data as base
-    const merged = { ...drive };
+    if (!localJson) return result;
 
-    if (!local) return merged;
+    const local = JSON.parse(localJson);
+    if (!local || !local.sales) return result;
 
-    // Merge sales — keep all unique bill IDs from both
-    const allSaleIds = new Set(drive.sales.map(s => s.id));
-    const localOnlySales = (local.sales || []).filter(s => !allSaleIds.has(s.id));
-    merged.sales = [...drive.sales, ...localOnlySales]
-      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    // Find bills in local that are NOT in Drive
+    const driveSaleIds = new Set((drive.sales || []).map(s => s.id));
+    const localOnlySales = (local.sales || []).filter(s => s.id && !driveSaleIds.has(s.id));
 
-    // Merge purchases — keep all unique PO IDs from both
-    const allPOIds = new Set(drive.purchases.map(p => p.id));
-    const localOnlyPOs = (local.purchases || []).filter(p => !allPOIds.has(p.id));
-    merged.purchases = [...drive.purchases, ...localOnlyPOs];
+    const drivePOIds = new Set((drive.purchases || []).map(p => p.id));
+    const localOnlyPOs = (local.purchases || []).filter(p => p.id && !drivePOIds.has(p.id));
 
-    // Use whichever has higher bill sequence number
-    if ((local.settings?.lastBillNumber || 0) > (merged.settings?.lastBillNumber || 0)) {
-      merged.settings.lastBillNumber = local.settings.lastBillNumber;
-      merged.settings.lastBillDate = local.settings.lastBillDate;
-      merged.settings.lastBillSeq = local.settings.lastBillSeq;
+    if (localOnlySales.length > 0 || localOnlyPOs.length > 0) {
+      console.log(`Merging ${localOnlySales.length} local-only bills + ${localOnlyPOs.length} local-only POs`);
+      result.merged = {
+        ...drive,
+        sales: [...(drive.sales || []), ...localOnlySales].sort((a,b) => (a.date||'').localeCompare(b.date||'')),
+        purchases: [...(drive.purchases || []), ...localOnlyPOs],
+        settings: {
+          ...(drive.settings || {}),
+          lastBillNumber: Math.max(drive.settings?.lastBillNumber || 0, local.settings?.lastBillNumber || 0),
+          lastBillDate: drive.settings?.lastBillDate || local.settings?.lastBillDate || '',
+          lastBillSeq: Math.max(drive.settings?.lastBillSeq || 0, local.settings?.lastBillSeq || 0),
+        }
+      };
+      result.newSales = localOnlySales.length;
+      result.newPOs = localOnlyPOs.length;
     }
-
-    const newSales = localOnlySales.length;
-    const newPOs = localOnlyPOs.length;
-    if (newSales > 0 || newPOs > 0) {
-      console.log(`Smart merge: added ${newSales} local bills + ${newPOs} local POs`);
-    }
-    return { merged, newSales, newPOs };
   } catch(e) {
     console.error('Smart merge error', e);
-    return { merged: JSON.parse(driveJson), newSales: 0, newPOs: 0 };
   }
+  return result;
+}
+
+// ---- Apply data to AppData ----
+function applyData(data) {
+  if (!data) return;
+  if (data.settings) AppData.settings = { ...AppData.settings, ...data.settings };
+  if (Array.isArray(data.products)) AppData.products = data.products.sort((a,b) => a.name.localeCompare(b.name));
+  if (Array.isArray(data.vendors)) AppData.vendors = data.vendors;
+  if (Array.isArray(data.sales)) AppData.sales = data.sales;
+  if (Array.isArray(data.purchases)) AppData.purchases = data.purchases;
+  if (Array.isArray(data.returns)) AppData.returns = data.returns;
+  if (Array.isArray(data.adjustments)) AppData.adjustments = data.adjustments;
 }
 
 // ---- Load from Drive with smart merge ----
@@ -81,53 +97,57 @@ async function loadFromDrive() {
   try {
     const fileId = await findDriveFile();
 
-    if (fileId) {
-      const driveContent = await downloadDriveFile(fileId);
-      if (driveContent) {
-        // Get local snapshot before overwriting
-        const localContent = localStorage.getItem(LOCAL_KEY);
-        // Smart merge Drive + local
-        const { merged, newSales, newPOs } = smartMerge(driveContent, localContent);
-        // Apply merged data
-        Object.assign(AppData, merged);
-        if (merged.settings) AppData.settings = { ...AppData.settings, ...merged.settings };
-        if (Array.isArray(merged.products)) AppData.products = merged.products.sort((a,b) => a.name.localeCompare(b.name));
-        if (Array.isArray(merged.vendors)) AppData.vendors = merged.vendors;
-        if (Array.isArray(merged.sales)) AppData.sales = merged.sales;
-        if (Array.isArray(merged.purchases)) AppData.purchases = merged.purchases;
-        if (Array.isArray(merged.returns)) AppData.returns = merged.returns;
-        if (Array.isArray(merged.adjustments)) AppData.adjustments = merged.adjustments;
-
-        if (newSales > 0 || newPOs > 0) {
-          showToast(`Synced — merged ${newSales} offline bill${newSales!==1?'s':''}  ✓`);
-          // Push merged data back to Drive immediately
-          setTimeout(() => saveToGoogle(), 1000);
-        } else {
-          showToast('Data loaded from Google Drive ✓');
-        }
-      }
-    } else {
-      // No Drive file yet — load from local
+    if (!fileId) {
+      // No Drive file — load local as fallback
       const hasLocal = loadLocal();
-      if (hasLocal) showToast('Loaded from local storage');
-      else showToast('Starting fresh');
+      showToast(hasLocal ? 'Loaded from local storage' : 'Starting fresh');
+      return;
     }
+
+    const driveContent = await downloadDriveFile(fileId);
+    if (!driveContent) {
+      const hasLocal = loadLocal();
+      showToast(hasLocal ? 'Drive error — loaded locally' : 'Could not load data');
+      return;
+    }
+
+    // Get local snapshot before applying Drive data
+    const localContent = localStorage.getItem(LOCAL_KEY);
+
+    // Smart merge Drive + local
+    const { merged, newSales, newPOs } = smartMerge(driveContent, localContent);
+
+    if (!merged) {
+      showToast('Error reading data');
+      return;
+    }
+
+    // Apply merged data
+    applyData(merged);
+
+    if (newSales > 0 || newPOs > 0) {
+      showToast(`Merged ${newSales} offline bill${newSales!==1?'s':''} ✓`);
+      // Push merged data back to Drive so both devices get it
+      setTimeout(() => saveToGoogle(), 1500);
+    } else {
+      showToast('Data loaded ✓');
+    }
+
   } catch(e) {
     console.error('Drive load error', e);
     const hasLocal = loadLocal();
-    if (hasLocal) showToast('Offline — loaded from local storage');
-    else showToast('Could not load data');
+    showToast(hasLocal ? 'Offline — loaded locally' : 'Could not load data');
   }
 }
 
-// ---- Download file content ----
+// ---- Download file ----
 async function downloadDriveFile(fileId) {
   try {
     const resp = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    if (!resp.ok) return null;
+    if (!resp.ok) { console.warn('Download failed', resp.status); return null; }
     return await resp.text();
   } catch(e) {
     console.error('Download error', e);
@@ -154,7 +174,7 @@ async function saveToGoogle() {
         }
       );
       if (!resp.ok) {
-        // File gone — create new
+        console.warn('Save failed, trying to create new file');
         driveFileId = null;
         localStorage.removeItem(DRIVE_FILE_ID_KEY);
         await saveToGoogle();
@@ -175,10 +195,12 @@ async function saveToGoogle() {
 
     saveLocal();
     if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
+    console.log('Saved to Drive:', driveFileId);
   } catch(e) {
     console.error('Drive save error', e);
     if (statusEl) statusEl.textContent = 'Save failed';
-    showToast('Save failed — data kept locally');
+    saveLocal();
+    showToast('Save failed — kept locally');
   }
 }
 
@@ -187,6 +209,7 @@ async function refreshFromDrive() {
   if (!accessToken) { showToast('Please sign in first'); return; }
   const statusEl = document.getElementById('save-status');
   if (statusEl) statusEl.textContent = 'Refreshing...';
+  // Clear cached ID to force a fresh search
   driveFileId = null;
   localStorage.removeItem(DRIVE_FILE_ID_KEY);
   await loadFromDrive();
@@ -194,11 +217,24 @@ async function refreshFromDrive() {
   renderCurrentPage();
   updateSidebarShopInfo();
   if (statusEl) statusEl.textContent = '';
+  showToast('Refreshed ✓');
+}
+
+// ---- Debug: show sync info ----
+function showSyncDebug() {
+  const info = [
+    `Drive file ID: ${driveFileId || 'none'}`,
+    `Local bills: ${AppData.sales.length}`,
+    `Last bill: ${AppData.sales.length ? AppData.sales[AppData.sales.length-1].id : 'none'}`,
+    `Last saved: ${localStorage.getItem('avani_last_save') || 'unknown'}`,
+  ];
+  alert('Sync status:\n\n' + info.join('\n'));
 }
 
 // ---- Auto-save ----
 function autoSave() {
   saveLocal();
+  localStorage.setItem('avani_last_save', new Date().toLocaleTimeString());
   clearTimeout(window._autoSaveTimer);
   if (accessToken) {
     window._autoSaveTimer = setTimeout(() => saveToGoogle(), 2000);
