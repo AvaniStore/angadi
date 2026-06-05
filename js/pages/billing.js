@@ -16,6 +16,7 @@ function renderBilling() {
         <div class="form-group"><label>Customer name</label><input id="b-customer" placeholder="Walk-in customer"></div>
         <div class="form-group"><label>Phone (optional)</label><input id="b-phone" placeholder="9XXXXXXXXX" type="tel"></div>
         <div class="form-group"><label>Bill date</label><input id="b-date" type="date" value="${today()}"></div>
+        <div class="form-group"><label>Bill suffix <span style="font-size:11px;color:var(--text3)">— optional, e.g. A, B, DEL</span></label><input id="b-suffix" placeholder="e.g. A" maxlength="5" style="text-transform:uppercase"></div>
       </div>
       <div class="divider"></div>
       <div style="font-size:13px;font-weight:600;margin-bottom:10px">Items</div>
@@ -300,7 +301,8 @@ function saveBill() {
   const customer = document.getElementById('b-customer').value.trim() || 'Walk-in';
   const phone = document.getElementById('b-phone').value.trim();
   const date = document.getElementById('b-date').value || today();
-  const billNo = nextBillNumber();
+  const suffix = (document.getElementById('b-suffix')?.value || '').trim();
+  const billNo = nextBillNumber(suffix);
 
   const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, delivery, gst: gstAmt, calcTotal, roundOff, total, profit };
   AppData.sales.push(sale);
