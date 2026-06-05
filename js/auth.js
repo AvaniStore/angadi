@@ -70,17 +70,32 @@ async function onSignedIn() {
     document.getElementById('user-info-sidebar').textContent = currentUser.email || currentUser.name || '';
   }
 
-  // Always load from Drive first — Drive is the single source of truth
-  // especially when multiple users share the same account
   showToast('Loading your data...');
   const statusEl = document.getElementById('save-status');
   if (statusEl) statusEl.textContent = 'Syncing from Drive...';
 
+  // Snapshot local data BEFORE loading Drive (to preserve offline bills)
+  const localSnapshot = localStorage.getItem(LOCAL_KEY);
+
+  // Load from Drive
   await loadFromDrive();
-  saveLocal(); // Update local cache with latest from Drive
+
+  // Merge any offline bills that aren't in Drive yet
+  if (localSnapshot) {
+    try {
+      const localData = JSON.parse(localSnapshot);
+      const merged = mergeOfflineData(localData);
+      if (merged.sales > 0 || merged.purchases > 0) {
+        showToast(`Merged ${merged.sales} offline bill${merged.sales !== 1 ? 's' : ''} ✓`);
+        // Save merged data back to Drive
+        setTimeout(() => saveToGoogle(), 1500);
+      }
+    } catch(e) { console.error('Merge failed', e); }
+  }
+
+  saveLocal();
   renderCurrentPage();
   updateSidebarShopInfo();
-
   if (statusEl) statusEl.textContent = '';
 }
 
