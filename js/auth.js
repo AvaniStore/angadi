@@ -72,27 +72,10 @@ async function onSignedIn() {
 
   showToast('Loading your data...');
   const statusEl = document.getElementById('save-status');
-  if (statusEl) statusEl.textContent = 'Syncing from Drive...';
+  if (statusEl) statusEl.textContent = 'Syncing...';
 
-  // Snapshot local data BEFORE loading Drive (to preserve offline bills)
-  const localSnapshot = localStorage.getItem(LOCAL_KEY);
-
-  // Load from Drive
+  // loadFromDrive handles smart merge of Drive + local automatically
   await loadFromDrive();
-
-  // Merge any offline bills that aren't in Drive yet
-  if (localSnapshot) {
-    try {
-      const localData = JSON.parse(localSnapshot);
-      const merged = mergeOfflineData(localData);
-      if (merged.sales > 0 || merged.purchases > 0) {
-        showToast(`Merged ${merged.sales} offline bill${merged.sales !== 1 ? 's' : ''} ✓`);
-        // Save merged data back to Drive
-        setTimeout(() => saveToGoogle(), 1500);
-      }
-    } catch(e) { console.error('Merge failed', e); }
-  }
-
   saveLocal();
   renderCurrentPage();
   updateSidebarShopInfo();
