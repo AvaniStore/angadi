@@ -10,7 +10,7 @@ async function findDriveFile() {
   const resp = await gapi.client.drive.files.list({
     q: `name='${CONFIG.DRIVE_FILE_NAME}' and trashed=false`,
     fields: 'files(id, name, modifiedTime)',
-    spaces: 'drive',
+    spaces: 'appDataFolder',
     orderBy: 'modifiedTime desc',
   });
   const files = resp.result.files || [];
@@ -187,7 +187,7 @@ async function saveToGoogle() {
       }
     } else {
       const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify({ name: CONFIG.DRIVE_FILE_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('metadata', new Blob([JSON.stringify({ name: CONFIG.DRIVE_FILE_NAME, mimeType: 'application/json', parents: ['appDataFolder'] })], { type: 'application/json' }));
       form.append('file', new Blob([content], { type: 'application/json' }));
       const resp = await fetch(
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
