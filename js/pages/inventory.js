@@ -254,15 +254,24 @@ function saveProduct() {
   AppData.products.sort((a, b) => a.name.localeCompare(b.name));
   editingProductId = null;
   autoSave();
+  // Re-render and restore the category filter that was active before editing
   renderInventory();
+  const catFilter = document.getElementById('inv-cat-filter');
+  if (catFilter && product.cat) catFilter.value = product.cat;
+  filterInventoryTable((document.getElementById('inv-search') || {}).value || '');
 }
 
 function deleteProduct(id) {
   if (!confirmDelete('Delete this product? This cannot be undone.')) return;
+  const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
   AppData.products = AppData.products.filter(p => p.id !== id);
   showToast('Product deleted');
   autoSave();
   renderInventory();
+  if (catFilter) {
+    const el = document.getElementById('inv-cat-filter');
+    if (el) { el.value = catFilter; filterInventoryTable(''); }
+  }
 }
 
 // ---- Vegetable & fruit weekly price update ----
@@ -306,14 +315,14 @@ function openVegPriceUpdate() {
 
 function vegPriceRow(v) {
   return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:grid;grid-template-columns:1fr 90px 90px 90px;gap:8px;align-items:center;margin-bottom:6px;padding:6px 4px;border-bottom:1px solid var(--border)">
-    <span style="font-size:13px">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3)"> (${v.brand})</span>` : ''} <span style="font-size:10px;background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span><div style="font-size:11px;color:var(--text3)">Current stock: ${v.stock}</div></span>
-    <input type="number" id="vp-cost-${v.id}" value="${v.cost||''}" placeholder="${v.cost||0}"
+    <span style="font-size:13px">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3)"> (${v.brand})</span>` : ''} <span style="font-size:10px;background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span><div style="font-size:11px;color:var(--text3)">Stock: ${v.stock}</div></span>
+    <input type="number" id="vp-cost-${v.id}" value="${v.cost||0}" autocomplete="off" autocorrect="off"
       onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
       style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
-    <input type="number" id="vp-sell-${v.id}" value="${v.sell||''}" placeholder="${v.sell||0}"
+    <input type="number" id="vp-sell-${v.id}" value="${v.sell||0}" autocomplete="off" autocorrect="off"
       onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
       style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
-    <input type="number" id="vp-stock-${v.id}" value="${v.stock||''}" placeholder="0"
+    <input type="number" id="vp-stock-${v.id}" value="${v.stock||0}" autocomplete="off" autocorrect="off"
       onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
       style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
   </div>`;
@@ -337,9 +346,9 @@ function saveVegPrices() {
     const costEl = document.getElementById(`vp-cost-${v.id}`);
     const sellEl = document.getElementById(`vp-sell-${v.id}`);
     const stockEl = document.getElementById(`vp-stock-${v.id}`);
-    if (costEl && costEl.value !== '') v.cost = parseFloat(costEl.value) || v.cost;
-    if (sellEl && sellEl.value !== '') v.sell = parseFloat(sellEl.value) || v.sell;
-    if (stockEl && stockEl.value !== '') v.stock = parseFloat(stockEl.value) || v.stock;
+    if (costEl) v.cost = parseFloat(costEl.value) || 0;
+    if (sellEl) v.sell = parseFloat(sellEl.value) || 0;
+    if (stockEl) v.stock = parseFloat(stockEl.value) || 0;
   });
   autoSave();
   showToast('Prices and stock updated ✓');
