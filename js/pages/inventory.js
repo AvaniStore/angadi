@@ -265,52 +265,65 @@ function deleteProduct(id) {
   renderInventory();
 }
 
-// ---- Vegetable weekly price update ----
+// ---- Vegetable & fruit weekly price update ----
 function openVegPriceUpdate() {
   const vegs = AppData.products.filter(p => p.cat === 'Vegetables' || p.cat === 'Fruits');
   if (!vegs.length) { showToast('No vegetables or fruits in inventory.'); return; }
 
-  const rows = vegs.map(v => `
-    <div style="display:grid;grid-template-columns:1fr 90px 90px;gap:8px;align-items:center;margin-bottom:8px">
-      <span style="font-size:13px;font-weight:500">${v.name} ${v.brand ? '('+v.brand+')' : ''}</span>
-      <div class="form-group" style="margin:0">
-        <input type="number" step="0.01" id="vp-cost-${v.id}" value="${v.cost}" placeholder="Cost/kg">
-      </div>
-      <div class="form-group" style="margin:0">
-        <input type="number" step="0.01" id="vp-sell-${v.id}" value="${v.sell}" placeholder="Sell/kg">
-      </div>
-    </div>
-  `).join('');
-
   document.getElementById('product-form-container').innerHTML = `
     <div class="card" style="margin-bottom:16px;border:2px solid var(--accent)">
-      <div class="card-title">🥦 Weekly vegetable & fruit price update</div>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:14px">Update cost and selling prices for all vegetables and fruits at once.</p>
-      <div style="display:grid;grid-template-columns:1fr 90px 90px;gap:8px;margin-bottom:8px">
-        <span style="font-size:11px;color:var(--text3)">Vegetable</span>
+      <div class="card-head">
+        <span class="card-title">🥦 Weekly vegetable & fruit price update</span>
+        <button class="btn btn-sm" onclick="document.getElementById('product-form-container').innerHTML=''">Cancel</button>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Update cost and selling prices. Leave blank to keep existing price.</p>
+      <input id="veg-search" type="text" placeholder="Search by name..." oninput="filterVegPriceRows(this.value)"
+        style="width:100%;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;margin-bottom:6px;padding:0 4px">
+        <span style="font-size:11px;color:var(--text3)">Product</span>
         <span style="font-size:11px;color:var(--text3)">Cost (₹)</span>
         <span style="font-size:11px;color:var(--text3)">Selling (₹)</span>
       </div>
-      ${rows}
-      <div class="form-actions" style="margin-top:8px">
+      <div id="veg-price-rows">
+        ${vegs.map(v => vegPriceRow(v)).join('')}
+      </div>
+      <div class="form-actions" style="margin-top:12px">
         <button class="btn btn-primary" onclick="saveVegPrices()">Update all prices</button>
-        <button class="btn" onclick="document.getElementById('product-form-container').innerHTML=''">Cancel</button>
       </div>
     </div>
   `;
   document.getElementById('product-form-container').scrollIntoView({ behavior: 'smooth' });
 }
 
+function vegPriceRow(v) {
+  return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;align-items:center;margin-bottom:6px;padding:4px 0;border-bottom:1px solid var(--border)">
+    <span style="font-size:13px">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3)"> (${v.brand})</span>` : ''} <span style="font-size:10px;background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span></span>
+    <input type="number" id="vp-cost-${v.id}" value="${v.cost||''}" placeholder="${v.cost||0}"
+      onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
+      style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+    <input type="number" id="vp-sell-${v.id}" value="${v.sell||''}" placeholder="${v.sell||0}"
+      onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
+      style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+  </div>`;
+}
+
+function filterVegPriceRows(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.veg-price-row').forEach(row => {
+    row.style.display = !q || row.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+
 function saveVegPrices() {
-  const vegs = AppData.products.filter(p => p.cat === 'Vegetables');
+  const vegs = AppData.products.filter(p => p.cat === 'Vegetables' || p.cat === 'Fruits');
   vegs.forEach(v => {
     const costEl = document.getElementById(`vp-cost-${v.id}`);
     const sellEl = document.getElementById(`vp-sell-${v.id}`);
-    if (costEl) v.cost = parseFloat(costEl.value) || v.cost;
-    if (sellEl) v.sell = parseFloat(sellEl.value) || v.sell;
+    if (costEl && costEl.value !== '') v.cost = parseFloat(costEl.value) || v.cost;
+    if (sellEl && sellEl.value !== '') v.sell = parseFloat(sellEl.value) || v.sell;
   });
   autoSave();
-  showToast('Vegetable prices updated ✓');
+  showToast('Prices updated ✓');
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
 }
