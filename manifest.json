@@ -1,21 +1,9 @@
 {
-  "name": "Vyapaar — Business Manager",
-  "short_name": "Vyapaar",
-  "description": "Inventory, billing and profit tracker for small businesses",
-  "start_url": "/",
+  "name": "Avani — The Organic Store",
+  "short_name": "Avani",
+  "description": "Inventory, billing and profit tracker for Avani Organic Store",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1D9E75",
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+  "background_color": "#1a3a1a",
+  "theme_color": "#1D9E75"
 }
