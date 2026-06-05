@@ -42,6 +42,7 @@ function renderSettings() {
           <button class="btn" onclick="exportData()">⬇ Export backup (JSON)</button>
           <button class="btn" onclick="importData()">⬆ Import backup</button>
           <button class="btn btn-primary" onclick="saveToGoogle()">☁ Save to Drive now</button>
+          <button class="btn" onclick="showSyncDebug()" title="Show sync info for troubleshooting">🔍 Sync info</button>
         </div>
       </div>
     </div>
