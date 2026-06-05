@@ -277,22 +277,30 @@ function openVegPriceUpdate() {
         <button class="btn btn-sm" onclick="document.getElementById('product-form-container').innerHTML=''">Cancel</button>
       </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Update cost and selling prices. Leave blank to keep existing price.</p>
-      <input id="veg-search" type="text" placeholder="Search by name..." oninput="filterVegPriceRows(this.value)"
-        style="width:100%;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);margin-bottom:12px">
-      <div style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;margin-bottom:6px;padding:0 4px">
-        <span style="font-size:11px;color:var(--text3)">Product</span>
-        <span style="font-size:11px;color:var(--text3)">Cost (₹)</span>
-        <span style="font-size:11px;color:var(--text3)">Selling (₹)</span>
+
+      <!-- Sticky search + header -->
+      <div style="position:sticky;top:52px;background:var(--bg2);z-index:10;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px">
+        <input id="veg-search" type="text" placeholder="🔍 Search vegetable or fruit..." oninput="filterVegPriceRows(this.value)"
+          style="width:100%;padding:8px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 100px 100px;gap:8px;padding:0 4px">
+          <span style="font-size:11px;color:var(--text3);font-weight:500">Product</span>
+          <span style="font-size:11px;color:var(--text3);font-weight:500">Cost (₹)</span>
+          <span style="font-size:11px;color:var(--text3);font-weight:500">Selling (₹)</span>
+        </div>
       </div>
+
       <div id="veg-price-rows">
         ${vegs.map(v => vegPriceRow(v)).join('')}
       </div>
-      <div class="form-actions" style="margin-top:12px">
+      <div class="form-actions" style="margin-top:12px;position:sticky;bottom:0;background:var(--bg2);padding-top:8px;border-top:1px solid var(--border)">
         <button class="btn btn-primary" onclick="saveVegPrices()">Update all prices</button>
+        <span id="veg-match-count" style="font-size:12px;color:var(--text3);margin-left:8px">${vegs.length} items</span>
       </div>
     </div>
   `;
   document.getElementById('product-form-container').scrollIntoView({ behavior: 'smooth' });
+  // Auto-focus search after scroll
+  setTimeout(() => { const s = document.getElementById('veg-search'); if(s) s.focus(); }, 400);
 }
 
 function vegPriceRow(v) {
@@ -309,9 +317,14 @@ function vegPriceRow(v) {
 
 function filterVegPriceRows(query) {
   const q = query.toLowerCase();
+  let visible = 0;
   document.querySelectorAll('.veg-price-row').forEach(row => {
-    row.style.display = !q || row.dataset.name.includes(q) ? '' : 'none';
+    const show = !q || row.dataset.name.includes(q);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
   });
+  const countEl = document.getElementById('veg-match-count');
+  if (countEl) countEl.textContent = q ? `${visible} match${visible!==1?'es':''}` : `${visible} items`;
 }
 
 function saveVegPrices() {
