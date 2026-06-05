@@ -8,30 +8,40 @@ let tokenClient = null;
 let accessToken = null;
 
 function loadGoogleLibraries() {
-  // Load GSI (identity) only — no gapi needed, we use direct fetch for Drive
   const gsi = document.createElement('script');
   gsi.src = 'https://accounts.google.com/gsi/client';
-  gsi.onload = () => { gisInited = true; console.log('GSI loaded'); };
-  gsi.onerror = () => console.error('GSI failed to load');
+  gsi.onload = () => { gisInited = true; };
   document.head.appendChild(gsi);
+
+  const gapiScript = document.createElement('script');
+  gapiScript.src = 'https://apis.google.com/js/api.js';
+  gapiScript.onload = () => {
+    window.gapi.load('client', async () => {
+      await window.gapi.client.init({
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+      });
+    });
+  };
+  document.head.appendChild(gapiScript);
 }
 
 function handleGoogleSignIn() {
   if (!gisInited) {
-    showToast('Loading Google Sign-In, please try again in a moment...');
+    showToast('Loading Google Sign-In, please try again...');
     setTimeout(handleGoogleSignIn, 1200);
     return;
   }
 
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.GOOGLE_CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
     callback: async (tokenResponse) => {
       if (tokenResponse.error) {
         showToast('Sign-in failed: ' + tokenResponse.error);
         return;
       }
       accessToken = tokenResponse.access_token;
+      gapi.client.setToken({ access_token: accessToken });
       await fetchUserInfo();
       await onSignedIn();
     },
@@ -59,15 +69,10 @@ async function onSignedIn() {
   }
 
   showToast('Loading your data...');
-  const statusEl = document.getElementById('save-status');
-  if (statusEl) statusEl.textContent = 'Syncing...';
-
-  // loadFromDrive handles smart merge of Drive + local automatically
   await loadFromDrive();
   saveLocal();
   renderCurrentPage();
   updateSidebarShopInfo();
-  if (statusEl) statusEl.textContent = '';
 }
 
 function handleSignOut() {
@@ -78,7 +83,6 @@ function handleSignOut() {
   currentUser = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('auth-screen').style.display = 'flex';
-  // Clear in-memory data but keep localStorage as offline fallback
   AppData.products = [];
   AppData.vendors = [];
   AppData.sales = [];
