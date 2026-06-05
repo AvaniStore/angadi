@@ -8,21 +8,8 @@ let driveFileId = localStorage.getItem(DRIVE_FILE_ID_KEY) || null;
 
 async function loadFromDrive() {
   try {
-    // If we have a stored file ID, try it directly first
-    if (driveFileId) {
-      const content = await downloadDriveFile(driveFileId);
-      if (content) {
-        deserialize(content);
-        showToast('Data loaded from Google Drive ✓');
-        return;
-      } else {
-        // Stored ID failed — clear it and search
-        driveFileId = null;
-        localStorage.removeItem(DRIVE_FILE_ID_KEY);
-      }
-    }
-
-    // Search for existing file by name
+    // Always search by name to find the most recently modified file
+    // This ensures both devices always sync to the same file
     const resp = await gapi.client.drive.files.list({
       q: `name='${CONFIG.DRIVE_FILE_NAME}' and trashed=false`,
       fields: 'files(id, name, modifiedTime)',
@@ -32,25 +19,41 @@ async function loadFromDrive() {
 
     const files = resp.result.files;
     if (files && files.length > 0) {
+      // Always use the most recently modified file
       driveFileId = files[0].id;
-      localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId); // Cache it
+      localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId);
+
+      // If there are duplicates, delete the older ones silently
+      if (files.length > 1) {
+        console.log(`Found ${files.length} data files, cleaning up duplicates...`);
+        for (let i = 1; i < files.length; i++) {
+          try {
+            await fetch(`https://www.googleapis.com/drive/v3/files/${files[i].id}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${accessToken}` }
+            });
+          } catch(e) { /* ignore delete errors */ }
+        }
+      }
+
       const content = await downloadDriveFile(driveFileId);
       if (content) {
         deserialize(content);
         showToast('Data loaded from Google Drive ✓');
       }
     } else {
+      // No file found — try cached ID as fallback
+      if (driveFileId) {
+        const content = await downloadDriveFile(driveFileId);
+        if (content) { deserialize(content); showToast('Data loaded ✓'); return; }
+      }
       showToast('No existing data found. Starting fresh.');
     }
   } catch (e) {
     console.error('Drive load error', e);
-    // Fall back to local storage
     const hasLocal = loadLocal();
-    if (hasLocal) {
-      showToast('Loaded from local storage (offline)');
-    } else {
-      showToast('Could not load data. Check connection.');
-    }
+    if (hasLocal) showToast('Loaded from local storage (offline)');
+    else showToast('Could not load data. Check connection.');
   }
 }
 
