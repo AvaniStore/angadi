@@ -290,13 +290,7 @@ function openVegPriceUpdate() {
       <!-- Sticky search + header -->
       <div style="position:sticky;top:52px;background:var(--bg2);z-index:10;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px">
         <input id="veg-search" type="text" placeholder="🔍 Search vegetable or fruit..." oninput="filterVegPriceRows(this.value)"
-          style="width:100%;padding:8px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);margin-bottom:8px">
-        <div style="display:grid;grid-template-columns:1fr 90px 90px 90px;gap:8px;padding:0 4px">
-          <span style="font-size:11px;color:var(--text3);font-weight:500">Product</span>
-          <span style="font-size:11px;color:var(--text3);font-weight:500">Cost (₹)</span>
-          <span style="font-size:11px;color:var(--text3);font-weight:500">Selling (₹)</span>
-          <span style="font-size:11px;color:var(--text3);font-weight:500">Stock</span>
-        </div>
+          style="width:100%;padding:8px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
       </div>
 
       <div id="veg-price-rows">
@@ -314,17 +308,33 @@ function openVegPriceUpdate() {
 }
 
 function vegPriceRow(v) {
-  return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:grid;grid-template-columns:1fr 90px 90px 90px;gap:8px;align-items:center;margin-bottom:6px;padding:6px 4px;border-bottom:1px solid var(--border)">
-    <span style="font-size:13px">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3)"> (${v.brand})</span>` : ''} <span style="font-size:10px;background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span><div style="font-size:11px;color:var(--text3)">Stock: ${v.stock}</div></span>
-    <input type="number" id="vp-cost-${v.id}" value="${v.cost||0}" autocomplete="off" autocorrect="off"
-      onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
-      style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
-    <input type="number" id="vp-sell-${v.id}" value="${v.sell||0}" autocomplete="off" autocorrect="off"
-      onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
-      style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
-    <input type="number" id="vp-stock-${v.id}" value="${v.stock||0}" autocomplete="off" autocorrect="off"
-      onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
-      style="padding:5px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
+  const inputStyle = 'padding:5px 4px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:72px;text-align:center';
+  return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:flex;align-items:center;gap:12px;margin-bottom:6px;padding:8px 4px;border-bottom:1px solid var(--border)">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3);font-weight:400"> (${v.brand})</span>` : ''}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:1px">
+        <span style="background:${v.cat==='Fruits'?'#fef3c7':'#d1fae5'};color:${v.cat==='Fruits'?'#92400e':'#065f46'};padding:1px 5px;border-radius:8px">${v.cat}</span>
+        &nbsp;Stock: ${v.stock}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="font-size:10px;color:var(--text3)">Cost</div>
+      <input type="number" id="vp-cost-${v.id}" value="${v.cost||0}" autocomplete="off"
+        onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
+        style="${inputStyle}">
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="font-size:10px;color:var(--text3)">Selling</div>
+      <input type="number" id="vp-sell-${v.id}" value="${v.sell||0}" autocomplete="off"
+        onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
+        style="${inputStyle}">
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="font-size:10px;color:var(--text3)">Stock</div>
+      <input type="number" id="vp-stock-${v.id}" value="${v.stock||0}" autocomplete="off"
+        onkeydown="if(event.key==='ArrowUp'){event.preventDefault();this.value=Math.round((parseFloat(this.value)||0)+1)}else if(event.key==='ArrowDown'){event.preventDefault();this.value=Math.max(0,Math.round((parseFloat(this.value)||0)-1))}"
+        style="${inputStyle}">
+    </div>
   </div>`;
 }
 
