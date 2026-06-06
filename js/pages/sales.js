@@ -1,13 +1,47 @@
 // ============================================================
-//  PAGE: Sales History — with customer returns
+//  PAGE: Sales History — with filters and customer returns
 // ============================================================
 
+let salesFilter = 'today';
+let salesCustomFrom = '';
+let salesCustomTo = '';
+
+function getFilteredSales() {
+  const todayStr = today();
+  let from, to;
+  if (salesFilter === 'today') {
+    from = to = todayStr;
+  } else if (salesFilter === 'week') {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    from = d.toISOString().slice(0,10); to = todayStr;
+  } else if (salesFilter === 'month') {
+    const d = new Date(); d.setDate(1);
+    from = d.toISOString().slice(0,10); to = todayStr;
+  } else if (salesFilter === 'custom') {
+    from = salesCustomFrom; to = salesCustomTo;
+    if (!from || !to) return AppData.sales.slice().reverse();
+  } else {
+    return AppData.sales.slice().reverse();
+  }
+  return AppData.sales.filter(s => s.date >= from && s.date <= to).slice().reverse();
+}
+
+function setSalesFilter(f) {
+  salesFilter = f;
+  if (f === 'custom') {
+    salesCustomFrom = salesCustomFrom || today();
+    salesCustomTo = salesCustomTo || today();
+  }
+  renderSales();
+}
+
 function renderSales() {
-  const totalRev = AppData.sales.reduce((a,s) => a + (s.total||0), 0);
-  const totalProfit = AppData.sales.reduce((a,s) => a + (s.profit||0), 0);
+  const filtered = getFilteredSales();
+  const totalRev = filtered.reduce((a,s) => a + (s.total||0), 0);
+  const totalProfit = filtered.reduce((a,s) => a + (s.profit||0), 0);
   const totalReturns = AppData.returns.reduce((a,r) => a + (r.refund||0), 0);
 
-  const rows = AppData.sales.slice().reverse().map(s => {
+  const rows = filtered.map(s => {
     const saleReturns = AppData.returns.filter(r => r.saleId === s.id);
     const returnedAmt = saleReturns.reduce((a,r) => a + (r.refund||0), 0);
     const hasReturn = saleReturns.length > 0;
@@ -46,11 +80,32 @@ function renderSales() {
     <div class="page-header">
       <h2 class="page-title">Sales History</h2>
       <div style="font-size:13px;color:var(--text2)">
-        ${AppData.sales.length} bills &nbsp;·&nbsp; ${fmt(totalRev)} revenue &nbsp;·&nbsp;
+        ${filtered.length} bills &nbsp;·&nbsp; ${fmt(totalRev)} &nbsp;·&nbsp;
         <span style="color:var(--accent-dark)">${fmt(totalProfit)} profit</span>
         ${totalReturns > 0 ? ` &nbsp;·&nbsp; <span style="color:var(--red)">-${fmt(totalReturns)} returns</span>` : ''}
       </div>
     </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      ${['today','week','month','all','custom'].map(f => `
+        <button onclick="setSalesFilter('${f}')" class="btn btn-sm ${salesFilter===f?'btn-primary':''}">${
+          f==='today'?'Today':f==='week'?'Last 7 days':f==='month'?'This month':f==='all'?'All time':'Custom'
+        }</button>`).join('')}
+    </div>
+
+    <div style="display:${salesFilter==='custom'?'flex':'none'};gap:10px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
+      <div class="form-group" style="margin:0">
+        <label style="font-size:12px;color:var(--text3)">From</label>
+        <input type="date" value="${salesCustomFrom}" onchange="salesCustomFrom=this.value;renderSales()"
+          style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label style="font-size:12px;color:var(--text3)">To</label>
+        <input type="date" value="${salesCustomTo||today()}" onchange="salesCustomTo=this.value;renderSales()"
+          style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+      </div>
+    </div>
+
     <div id="sale-detail"></div>
     <div id="return-form"></div>
 
