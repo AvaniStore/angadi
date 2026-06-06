@@ -3,7 +3,22 @@
 // ============================================================
 
 const DRIVE_FILE_ID_KEY = 'avani_drive_file_id';
-let driveFileId = localStorage.getItem(DRIVE_FILE_ID_KEY) || null;
+const DRIVE_FILE_ID_KEY2 = 'avani_fid'; // backup key
+
+let driveFileId = localStorage.getItem(DRIVE_FILE_ID_KEY) || localStorage.getItem(DRIVE_FILE_ID_KEY2) || null;
+
+function saveDriveFileId(id) {
+  driveFileId = id;
+  if (id) {
+    localStorage.setItem(DRIVE_FILE_ID_KEY, id);
+    localStorage.setItem(DRIVE_FILE_ID_KEY2, id);
+    sessionStorage.setItem(DRIVE_FILE_ID_KEY, id);
+  } else {
+    localStorage.removeItem(DRIVE_FILE_ID_KEY);
+    localStorage.removeItem(DRIVE_FILE_ID_KEY2);
+    sessionStorage.removeItem(DRIVE_FILE_ID_KEY);
+  }
+}
 
 async function loadFromDrive() {
   try {
@@ -69,8 +84,7 @@ async function saveToGoogle() {
         { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
       );
       const result = await resp.json();
-      driveFileId = result.id;
-      localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId);
+      saveDriveFileId(result.id);
     }
 
     saveLocal();
@@ -85,8 +99,7 @@ async function saveToGoogle() {
 
 async function refreshFromDrive() {
   if (!accessToken) { showToast('Please sign in first'); return; }
-  driveFileId = null;
-  localStorage.removeItem(DRIVE_FILE_ID_KEY);
+  saveDriveFileId(null);
   await loadFromDrive();
   saveLocal();
   renderCurrentPage();
@@ -95,7 +108,18 @@ async function refreshFromDrive() {
 }
 
 function showSyncDebug() {
-  alert('Sync status:\n\nDrive file ID: ' + (driveFileId || 'none') + '\nLocal bills: ' + AppData.sales.length + '\nLast bill: ' + (AppData.sales.length ? AppData.sales[AppData.sales.length-1].id : 'none'));
+  const ls1 = localStorage.getItem(DRIVE_FILE_ID_KEY);
+  const ls2 = localStorage.getItem(DRIVE_FILE_ID_KEY2);
+  const ss = sessionStorage.getItem(DRIVE_FILE_ID_KEY);
+  const info = [
+    `Drive file ID (memory): ${driveFileId || 'none'}`,
+    `Drive file ID (localStorage): ${ls1 || 'none'}`,
+    `Drive file ID (backup): ${ls2 || 'none'}`,
+    `Local bills: ${AppData.sales.length}`,
+    `Last bill: ${AppData.sales.length ? AppData.sales[AppData.sales.length-1].id : 'none'}`,
+    `Access token: ${accessToken ? 'present' : 'missing'}`,
+  ];
+  alert('Sync status:\n\n' + info.join('\n'));
 }
 
 function showReconnectBtn(show) {
