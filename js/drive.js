@@ -22,6 +22,19 @@ function saveDriveFileId(id) {
 
 async function loadFromDrive() {
   try {
+    // Try cached file ID first — fastest path
+    if (driveFileId) {
+      const content = await downloadDriveFile(driveFileId);
+      if (content) {
+        deserialize(content);
+        showToast('Data loaded ✓');
+        return;
+      }
+      // Cached ID failed — search for file
+      console.log('Cached ID failed, searching Drive...');
+    }
+
+    // Search Drive for the file
     const resp = await gapi.client.drive.files.list({
       q: `name='${CONFIG.DRIVE_FILE_NAME}' and trashed=false`,
       fields: 'files(id, name, modifiedTime)',
@@ -31,19 +44,30 @@ async function loadFromDrive() {
 
     const files = resp.result.files;
     if (files && files.length > 0) {
-      driveFileId = files[0].id;
-      localStorage.setItem(DRIVE_FILE_ID_KEY, driveFileId);
+      saveDriveFileId(files[0].id);
+
+      // Delete duplicates
+      if (files.length > 1) {
+        for (let i = 1; i < files.length; i++) {
+          fetch(`https://www.googleapis.com/drive/v3/files/${files[i].id}`, {
+            method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` }
+          }).catch(() => {});
+        }
+      }
+
       const content = await downloadDriveFile(driveFileId);
       if (content) {
         deserialize(content);
         showToast('Data loaded ✓');
       }
     } else {
+      // No file on Drive — load local, but DON'T clear the stored file ID
       const hasLocal = loadLocal();
       showToast(hasLocal ? 'Loaded from local storage' : 'Starting fresh');
     }
   } catch (e) {
     console.error('Drive load error', e);
+    // On error — load local but keep the stored file ID intact
     const hasLocal = loadLocal();
     showToast(hasLocal ? 'Offline — loaded locally' : 'Could not load data');
   }
