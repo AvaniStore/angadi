@@ -25,12 +25,13 @@ async function loadFromDrive() {
     // Try cached file ID first — fastest path
     if (driveFileId) {
       const content = await downloadDriveFile(driveFileId);
+      console.log('Cached ID download:', content ? content.length + ' bytes' : 'failed');
       if (content) {
-        deserialize(content);
-        showToast('Data loaded ✓');
+        const ok = deserialize(content);
+        console.log('Deserialize:', ok, 'Sales:', AppData.sales.length);
+        showToast(`Data loaded ✓ (${AppData.sales.length} bills)`);
         return;
       }
-      // Cached ID failed — search for file
       console.log('Cached ID failed, searching Drive...');
     }
 
@@ -56,9 +57,14 @@ async function loadFromDrive() {
       }
 
       const content = await downloadDriveFile(driveFileId);
+      console.log('Downloaded content length:', content ? content.length : 'null');
       if (content) {
-        deserialize(content);
-        showToast('Data loaded ✓');
+        const ok = deserialize(content);
+        console.log('Deserialize result:', ok, 'Sales:', AppData.sales.length);
+        showToast(`Data loaded ✓ (${AppData.sales.length} bills)`);
+      } else {
+        console.error('Download returned null');
+        showToast('Could not download data');
       }
     } else {
       // No file on Drive — load local, but DON'T clear the stored file ID
@@ -86,6 +92,23 @@ async function downloadDriveFile(fileId) {
   }
 }
 
+async function refreshToken() {
+  return new Promise((resolve) => {
+    if (tokenClient) {
+      tokenClient.callback = async (tokenResponse) => {
+        if (!tokenResponse.error) {
+          accessToken = tokenResponse.access_token;
+          gapi.client.setToken({ access_token: accessToken });
+        }
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '' });
+    } else {
+      resolve();
+    }
+  });
+}
+
 async function saveToGoogle() {
   if (!accessToken) { showToast('Please sign in first'); return; }
   const statusEl = document.getElementById('save-status');
@@ -95,10 +118,16 @@ async function saveToGoogle() {
     const content = serialize();
 
     if (driveFileId) {
-      await fetch(
+      const resp = await fetch(
         `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
         { method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: content }
       );
+      if (resp.status === 401) {
+        showToast('Token expired — refreshing...');
+        await refreshToken();
+        await saveToGoogle();
+        return;
+      }
     } else {
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify({ name: CONFIG.DRIVE_FILE_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
@@ -107,6 +136,12 @@ async function saveToGoogle() {
         'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
         { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
       );
+      if (resp.status === 401) {
+        showToast('Token expired — refreshing...');
+        await refreshToken();
+        await saveToGoogle();
+        return;
+      }
       const result = await resp.json();
       saveDriveFileId(result.id);
     }
@@ -117,14 +152,22 @@ async function saveToGoogle() {
   } catch (e) {
     console.error('Drive save error', e);
     if (statusEl) statusEl.textContent = 'Save failed';
+    saveLocal();
     showToast('Save failed — data kept locally');
   }
 }
 
 async function refreshFromDrive() {
   if (!accessToken) { showToast('Please sign in first'); return; }
-  saveDriveFileId(null);
+  // Don't wipe file ID — just force a fresh search by temporarily clearing memory only
+  const savedId = driveFileId;
+  driveFileId = null; // only clear memory, not localStorage
   await loadFromDrive();
+  // If search failed but we had a saved ID, restore it
+  if (!driveFileId && savedId) {
+    console.log('Search failed, restoring saved file ID:', savedId);
+    driveFileId = savedId;
+  }
   saveLocal();
   renderCurrentPage();
   updateSidebarShopInfo();
