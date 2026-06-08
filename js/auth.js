@@ -38,13 +38,21 @@ function handleGoogleSignIn() {
     include_granted_scopes: false,
     callback: async (tokenResponse) => {
       if (tokenResponse.error) {
-        showToast('Sign-in failed: ' + tokenResponse.error);
+        // Only show error if it's not a silent refresh attempt
+        if (tokenResponse.error !== 'interaction_required') {
+          showToast('Sign-in failed: ' + tokenResponse.error);
+        }
         return;
       }
+      const isFirstSignIn = !accessToken;
       accessToken = tokenResponse.access_token;
       gapi.client.setToken({ access_token: accessToken });
-      await fetchUserInfo();
-      await onSignedIn();
+      if (isFirstSignIn) {
+        await fetchUserInfo();
+        await onSignedIn();
+      } else {
+        console.log('Token refreshed silently ✓');
+      }
     },
   });
   tokenClient.requestAccessToken({ prompt: 'consent' });
@@ -68,6 +76,15 @@ async function onSignedIn() {
   if (currentUser) {
     document.getElementById('user-info-sidebar').textContent = currentUser.email || currentUser.name || '';
   }
+
+  // Auto-refresh token every 50 minutes (tokens expire at 60 min)
+  clearInterval(window._tokenRefreshTimer);
+  window._tokenRefreshTimer = setInterval(async () => {
+    console.log('Auto-refreshing token...');
+    if (tokenClient) {
+      tokenClient.requestAccessToken({ prompt: '' });
+    }
+  }, 50 * 60 * 1000);
 
   showToast('Loading your data...');
   await loadFromDrive();
