@@ -2,7 +2,7 @@
 //  PAGE: Sales History — with filters and customer returns
 // ============================================================
 
-let salesFilter = 'today';
+let salesFilter = 'all';
 let salesCustomFrom = '';
 let salesCustomTo = '';
 
