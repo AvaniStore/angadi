@@ -159,19 +159,42 @@ async function saveToGoogle() {
 
 async function refreshFromDrive() {
   if (!accessToken) { showToast('Please sign in first'); return; }
-  // Don't wipe file ID — just force a fresh search by temporarily clearing memory only
+  const statusEl = document.getElementById('save-status');
+  if (statusEl) statusEl.textContent = 'Refreshing...';
+
+  // Force fresh download by bypassing cache temporarily
   const savedId = driveFileId;
-  driveFileId = null; // only clear memory, not localStorage
-  await loadFromDrive();
-  // If search failed but we had a saved ID, restore it
-  if (!driveFileId && savedId) {
-    console.log('Search failed, restoring saved file ID:', savedId);
+  driveFileId = null;
+
+  try {
+    // Download directly using saved file ID
+    if (savedId) {
+      const content = await downloadDriveFile(savedId);
+      if (content) {
+        deserialize(content);
+        driveFileId = savedId;
+        saveDriveFileId(savedId);
+        saveLocal();
+        renderCurrentPage();
+        updateSidebarShopInfo();
+        if (statusEl) statusEl.textContent = '';
+        showToast(`Refreshed ✓ (${AppData.sales.length} bills)`);
+        return;
+      }
+    }
+    // Fallback to full search
+    await loadFromDrive();
+    if (!driveFileId && savedId) driveFileId = savedId;
+    saveLocal();
+    renderCurrentPage();
+    updateSidebarShopInfo();
+    if (statusEl) statusEl.textContent = '';
+    showToast(`Refreshed ✓`);
+  } catch(e) {
     driveFileId = savedId;
+    if (statusEl) statusEl.textContent = '';
+    showToast('Refresh failed');
   }
-  saveLocal();
-  renderCurrentPage();
-  updateSidebarShopInfo();
-  showToast('Refreshed ✓');
 }
 
 function showSyncDebug() {
