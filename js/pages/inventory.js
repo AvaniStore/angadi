@@ -254,11 +254,14 @@ function saveProduct() {
   AppData.products.sort((a, b) => a.name.localeCompare(b.name));
   editingProductId = null;
   autoSave();
-  // Re-render and restore the category filter that was active before editing
+  // Remember active filter before re-rendering
+  const prevCatFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
+  const prevSearch = (document.getElementById('inv-search') || {}).value || '';
   renderInventory();
+  // Restore previous filter (not the product's category)
   const catFilter = document.getElementById('inv-cat-filter');
-  if (catFilter && product.cat) catFilter.value = product.cat;
-  filterInventoryTable((document.getElementById('inv-search') || {}).value || '');
+  if (catFilter) catFilter.value = prevCatFilter;
+  filterInventoryTable(prevSearch);
 }
 
 function deleteProduct(id) {
