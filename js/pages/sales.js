@@ -55,6 +55,22 @@ function setSalesPaymentFilter(p) {
   renderSales();
 }
 
+function filterSalesRows(query) {
+  const q = (query || '').toLowerCase();
+  const tbody = document.querySelector('#page-sales .table-wrap tbody');
+  if (!tbody) return;
+  const rows = tbody.querySelectorAll('tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const customerCell = row.querySelector('td:nth-child(3)');
+    if (!customerCell) return;
+    const name = customerCell.textContent.toLowerCase();
+    const show = !q || name.includes(q);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+}
+
 function renderSales() {
   const filtered = getFilteredSales();
   const totalRev = filtered.reduce((a,s) => a + (s.total||0), 0);
@@ -124,45 +140,39 @@ function renderSales() {
     </div>
 
     <!-- Payment summary strip -->
-    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <div style="background:#dcfce7;border-radius:var(--radius);padding:8px 14px;font-size:13px">
-        💵 Cash &nbsp;<strong>${fmt(cashAmt)}</strong>
-        <span style="font-size:11px;color:#166534;margin-left:4px">${filtered.filter(s=>(s.payment||'Cash')==='Cash').length} bills</span>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:#dcfce7;border-radius:var(--radius);padding:8px 14px;font-size:13px;display:flex;align-items:center;gap:8px">
+        <span>💵 Cash</span><strong>${fmt(cashAmt)}</strong>
+        <span style="font-size:11px;color:#166534">${filtered.filter(s=>(s.payment||'Cash')==='Cash').length} bills</span>
       </div>
-      <div style="background:#dbeafe;border-radius:var(--radius);padding:8px 14px;font-size:13px">
-        📱 GPay &nbsp;<strong style="color:#1d4ed8">${fmt(gpayAmt)}</strong>
-        <span style="font-size:11px;color:#1d4ed8;margin-left:4px">${filtered.filter(s=>s.payment==='GPay').length} bills</span>
+      <div style="background:#dbeafe;border-radius:var(--radius);padding:8px 14px;font-size:13px;display:flex;align-items:center;gap:8px">
+        <span>📱 GPay</span><strong style="color:#1d4ed8">${fmt(gpayAmt)}</strong>
+        <span style="font-size:11px;color:#1d4ed8">${filtered.filter(s=>s.payment==='GPay').length} bills</span>
       </div>
-      ${otherAmt > 0 ? `<div style="background:#f3f4f6;border-radius:var(--radius);padding:8px 14px;font-size:13px">
-        Other &nbsp;<strong>${fmt(otherAmt)}</strong>
-        <span style="font-size:11px;color:#374151;margin-left:4px">${filtered.filter(s=>s.payment==='Other').length} bills</span>
+      ${otherAmt > 0 ? `<div style="background:#f3f4f6;border-radius:var(--radius);padding:8px 14px;font-size:13px;display:flex;align-items:center;gap:8px">
+        <span>Other</span><strong>${fmt(otherAmt)}</strong>
+        <span style="font-size:11px;color:#374151">${filtered.filter(s=>s.payment==='Other').length} bills</span>
       </div>` : ''}
     </div>
 
     <!-- Customer search -->
-    <div style="margin-bottom:10px">
+    <div style="margin-bottom:14px">
       <input type="text" placeholder="🔍 Search by customer name..." value="${salesCustomerFilter}"
-        oninput="salesCustomerFilter=this.value;renderSales()"
-        style="width:100%;max-width:300px;padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+        oninput="salesCustomerFilter=this.value;filterSalesRows(this.value)"
+        style="width:100%;max-width:320px;padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
     </div>
 
-    <!-- Date filter tabs -->
-    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+    <!-- Date filter -->
+    <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;letter-spacing:0.5px">FILTER BY DATE</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       ${['today','week','month','all','custom'].map(f => `
         <button onclick="setSalesFilter('${f}')" class="btn btn-sm ${salesFilter===f?'btn-primary':''}">${
           f==='today'?'Today':f==='week'?'Last 7 days':f==='month'?'This month':f==='all'?'All time':'Custom'
         }</button>`).join('')}
     </div>
 
-    <!-- Payment filter -->
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-      ${['all','Cash','GPay','Other'].map(p => `
-        <button onclick="setSalesPaymentFilter('${p}')" class="btn btn-sm ${salesPaymentFilter===p?'btn-primary':''}">${
-          p==='all'?'All payments':p==='Cash'?'💵 Cash only':p==='GPay'?'📱 GPay only':'Other only'
-        }</button>`).join('')}
-    </div>
-
-    <div style="display:${salesFilter==='custom'?'flex':'none'};gap:10px;align-items:flex-end;margin-bottom:12px;flex-wrap:wrap">
+    <!-- Custom date range -->
+    <div style="display:${salesFilter==='custom'?'flex':'none'};gap:10px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap">
       <div class="form-group" style="margin:0">
         <label style="font-size:12px;color:var(--text3)">From</label>
         <input type="date" value="${salesCustomFrom}" onchange="salesCustomFrom=this.value;renderSales()"
@@ -173,6 +183,15 @@ function renderSales() {
         <input type="date" value="${salesCustomTo||today()}" onchange="salesCustomTo=this.value;renderSales()"
           style="padding:6px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
       </div>
+    </div>
+
+    <!-- Payment filter -->
+    <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;letter-spacing:0.5px">FILTER BY PAYMENT</div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+      ${['all','Cash','GPay','Other'].map(p => `
+        <button onclick="setSalesPaymentFilter('${p}')" class="btn btn-sm ${salesPaymentFilter===p?'btn-primary':''}">${
+          p==='all'?'All':p==='Cash'?'💵 Cash':p==='GPay'?'📱 GPay':'Other'
+        }</button>`).join('')}
     </div>
 
     <div id="sale-detail"></div>
