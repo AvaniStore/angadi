@@ -374,13 +374,12 @@ function editSale(id) {
     if (p) p.stock += it.qty;
   });
 
-  // Remove the old bill
+  // Remove the old bill but remember its ID
   AppData.sales = AppData.sales.filter(s => s.id !== id);
-  // Roll back bill number counter
-  if (AppData.settings.lastBillNumber > 0) AppData.settings.lastBillNumber--;
 
   // Load items into billing page
   billItems = (sale.items || []).map(it => ({ ...it }));
+  editingBillId = sale.id; // preserve original bill number
 
   // Navigate to billing page
   showPage('billing', document.querySelector('[data-page="billing"]'));
@@ -397,6 +396,8 @@ function editSale(id) {
     if (date) date.value = sale.date || today();
     if (disc) disc.value = sale.billDisc || 0;
     if (delivery) delivery.value = sale.delivery || 0;
+    // Set payment method
+    if (sale.payment) { currentPayment = sale.payment; setPayment(sale.payment); }
     renderBillRows();
     showToast(`Editing bill ${sale.id} — make changes and save`);
   }, 100);
