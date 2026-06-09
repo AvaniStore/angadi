@@ -24,6 +24,52 @@ function setPayment(method) {
   });
 }
 
+function showCustomerSuggestions(query) {
+  const dropdown = document.getElementById('customer-suggestions');
+  if (!dropdown) return;
+  if (!query || query.length < 2) { dropdown.style.display = 'none'; return; }
+  const q = query.toLowerCase();
+  const matches = (AppData.customers || [])
+    .filter(c => c.name.toLowerCase().includes(q))
+    .slice(0, 8);
+  if (!matches.length) { dropdown.style.display = 'none'; return; }
+  dropdown.innerHTML = matches.map(c => `
+    <div onmousedown="pickCustomer('${c.name.replace(/'/g,"\\'")}','${(c.phone||'').replace(/'/g,"\\'")}');"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div style="font-weight:500">${c.name}</div>
+      ${c.phone ? `<div style="font-size:11px;color:var(--text3)">${c.phone}</div>` : ''}
+    </div>`).join('');
+  dropdown.style.display = 'block';
+}
+
+function hideCustomerSuggestions() {
+  const d = document.getElementById('customer-suggestions');
+  if (d) d.style.display = 'none';
+}
+
+function pickCustomer(name, phone) {
+  const custEl = document.getElementById('b-customer');
+  const phoneEl = document.getElementById('b-phone');
+  if (custEl) custEl.value = name;
+  if (phoneEl && phone) phoneEl.value = phone;
+  hideCustomerSuggestions();
+}
+
+function saveCustomerFromBill(name, phone) {
+  if (!name || name === 'Walk-in') return;
+  if (!AppData.customers) AppData.customers = [];
+  const existing = AppData.customers.find(c => c.name.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    if (phone) existing.phone = phone; // update phone if provided
+    existing.lastBill = today();
+    existing.billCount = (existing.billCount || 0) + 1;
+  } else {
+    AppData.customers.push({ id: uid(), name, phone: phone || '', lastBill: today(), billCount: 1 });
+    AppData.customers.sort((a,b) => a.name.localeCompare(b.name));
+  }
+}
+
 function renderBilling() {
   if (!billItems.length) billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
 
@@ -33,7 +79,15 @@ function renderBilling() {
     </div>
     <div class="card">
       <div class="form-grid">
-        <div class="form-group"><label>Customer name</label><input id="b-customer" placeholder="Walk-in customer"></div>
+        <div class="form-group">
+          <label>Customer name</label>
+          <div style="position:relative">
+            <input id="b-customer" placeholder="Walk-in customer" autocomplete="off"
+              oninput="showCustomerSuggestions(this.value)"
+              onblur="setTimeout(()=>hideCustomerSuggestions(),200)">
+            <div id="customer-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:160px;overflow-y:auto"></div>
+          </div>
+        </div>
         <div class="form-group"><label>Phone (optional)</label><input id="b-phone" placeholder="9XXXXXXXXX" type="tel"></div>
         <div class="form-group"><label>Bill date</label><input id="b-date" type="date" value="${today()}"></div>
         <div class="form-group"><label>Bill suffix <span style="font-size:11px;color:var(--text3)">— optional</span></label><input id="b-suffix" placeholder="e.g. A" maxlength="5" style="text-transform:uppercase"></div>
@@ -323,6 +377,7 @@ function saveBill() {
   const date = document.getElementById('b-date').value || today();
   const suffix = (document.getElementById('b-suffix')?.value || '').trim();
   const billNo = nextBillNumber(suffix);
+  saveCustomerFromBill(customer, phone);
 
   const sale = { id: billNo, date, customer, phone, payment: currentPayment, items: valid, sub, itemDisc, billDisc, delivery, gst: gstAmt, calcTotal, roundOff, total, profit };
   AppData.sales.push(sale);
