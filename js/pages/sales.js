@@ -5,6 +5,7 @@
 let salesFilter = 'all';
 let salesCustomFrom = '';
 let salesCustomTo = '';
+let salesPaymentFilter = 'all';
 
 function getFilteredSales() {
   const todayStr = today();
@@ -21,9 +22,13 @@ function getFilteredSales() {
     from = salesCustomFrom; to = salesCustomTo;
     if (!from || !to) return AppData.sales.slice().reverse();
   } else {
-    return AppData.sales.slice().reverse();
+    from = '2000-01-01'; to = todayStr;
   }
-  return AppData.sales.filter(s => s.date >= from && s.date <= to).slice().reverse();
+  return AppData.sales.filter(s => {
+    const dateMatch = s.date >= from && s.date <= to;
+    const payMatch = salesPaymentFilter === 'all' || (s.payment || 'Cash') === salesPaymentFilter;
+    return dateMatch && payMatch;
+  }).slice().reverse();
 }
 
 function setSalesFilter(f) {
@@ -32,6 +37,11 @@ function setSalesFilter(f) {
     salesCustomFrom = salesCustomFrom || today();
     salesCustomTo = salesCustomTo || today();
   }
+  renderSales();
+}
+
+function setSalesPaymentFilter(p) {
+  salesPaymentFilter = p;
   renderSales();
 }
 
@@ -54,6 +64,13 @@ function renderSales() {
       <td style="font-weight:600">${fmt(s.total)}${hasReturn ? `<div style="font-size:11px;color:var(--red)">-${fmt(returnedAmt)} returned</div>` : ''}</td>
       <td style="color:var(--accent-dark);font-weight:600">${fmt(s.profit)}</td>
       <td>
+        <div style="margin-bottom:4px">
+          <span style="font-size:11px;padding:2px 7px;border-radius:10px;font-weight:500;${
+            (s.payment||'Cash')==='GPay' ? 'background:#dbeafe;color:#1d4ed8' :
+            (s.payment||'Cash')==='Cash' ? 'background:#dcfce7;color:#166534' :
+            'background:#f3f4f6;color:#374151'
+          }">${s.payment||'Cash'}</span>
+        </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn btn-xs" onclick="viewSale('${s.id}')">View</button>
           <button class="btn btn-xs" style="color:var(--blue);border-color:#93c5fd" onclick="editSale('${s.id}')">Edit</button>
@@ -76,6 +93,11 @@ function renderSales() {
     </tr>`;
   }).join('') || `<tr><td colspan="5"><div class="empty-state" style="padding:16px"><p>No returns yet</p></div></td></tr>`;
 
+  // Payment summary for filtered period
+  const cashAmt = filtered.filter(s => (s.payment||'Cash')==='Cash').reduce((a,s) => a+(s.total||0), 0);
+  const gpayAmt = filtered.filter(s => s.payment==='GPay').reduce((a,s) => a+(s.total||0), 0);
+  const otherAmt = filtered.filter(s => s.payment==='Other').reduce((a,s) => a+(s.total||0), 0);
+
   document.getElementById('page-sales').innerHTML = `
     <div class="page-header">
       <h2 class="page-title">Sales History</h2>
@@ -86,10 +108,35 @@ function renderSales() {
       </div>
     </div>
 
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    <!-- Payment summary strip -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <div style="background:#dcfce7;border-radius:var(--radius);padding:8px 14px;font-size:13px">
+        💵 Cash &nbsp;<strong>${fmt(cashAmt)}</strong>
+        <span style="font-size:11px;color:#166534;margin-left:4px">${filtered.filter(s=>(s.payment||'Cash')==='Cash').length} bills</span>
+      </div>
+      <div style="background:#dbeafe;border-radius:var(--radius);padding:8px 14px;font-size:13px">
+        📱 GPay &nbsp;<strong style="color:#1d4ed8">${fmt(gpayAmt)}</strong>
+        <span style="font-size:11px;color:#1d4ed8;margin-left:4px">${filtered.filter(s=>s.payment==='GPay').length} bills</span>
+      </div>
+      ${otherAmt > 0 ? `<div style="background:#f3f4f6;border-radius:var(--radius);padding:8px 14px;font-size:13px">
+        Other &nbsp;<strong>${fmt(otherAmt)}</strong>
+        <span style="font-size:11px;color:#374151;margin-left:4px">${filtered.filter(s=>s.payment==='Other').length} bills</span>
+      </div>` : ''}
+    </div>
+
+    <!-- Date filter tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
       ${['today','week','month','all','custom'].map(f => `
         <button onclick="setSalesFilter('${f}')" class="btn btn-sm ${salesFilter===f?'btn-primary':''}">${
           f==='today'?'Today':f==='week'?'Last 7 days':f==='month'?'This month':f==='all'?'All time':'Custom'
+        }</button>`).join('')}
+    </div>
+
+    <!-- Payment filter -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      ${['all','Cash','GPay','Other'].map(p => `
+        <button onclick="setSalesPaymentFilter('${p}')" class="btn btn-sm ${salesPaymentFilter===p?'btn-primary':''}">${
+          p==='all'?'All payments':p==='Cash'?'💵 Cash only':p==='GPay'?'📱 GPay only':'Other only'
         }</button>`).join('')}
     </div>
 
@@ -111,7 +158,7 @@ function renderSales() {
 
     <div class="table-wrap" style="margin-bottom:20px">
       <table>
-        <thead><tr><th>Bill #</th><th>Date</th><th>Customer</th><th>Phone</th><th>Items</th><th>Total</th><th>Profit</th><th></th></tr></thead>
+        <thead><tr><th>Bill #</th><th>Date</th><th>Customer</th><th>Phone</th><th>Items</th><th>Total</th><th>Profit</th><th>Payment</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
