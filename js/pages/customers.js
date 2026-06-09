@@ -37,7 +37,7 @@ function renderCustomers() {
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn btn-xs" onclick="editCustomer('${c.id}')">Edit</button>
-          <button class="btn btn-xs" onclick="viewCustomerBills('${c.name.replace(/'/g,\`\\'\`)}')">Bills</button>
+          <button class="btn btn-xs" onclick="viewCustomerBills(this.dataset.name)" data-name="${c.name.replace(/"/g,'&quot;')}">Bills</button>
           <button class="btn btn-xs btn-danger" onclick="deleteCustomer('${c.id}')">Del</button>
         </div>
       </td>
@@ -112,7 +112,8 @@ function deleteCustomer(id) {
   renderCustomers();
 }
 
-function viewCustomerBills(name) {
+function viewCustomerBills(nameOrEl) {
+  const name = typeof nameOrEl === 'string' ? nameOrEl : nameOrEl.dataset?.name || nameOrEl;
   salesCustomerFilter = name;
   showPage('sales', document.querySelector('[data-page="sales"]'));
 }
