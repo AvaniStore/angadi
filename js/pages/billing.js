@@ -3,7 +3,8 @@
 // ============================================================
 
 let billItems = [];
-let currentPayment = 'Cash'; // default
+let currentPayment = 'Cash';
+let editingBillId = null; // set when editing an existing bill
 
 function setPayment(method) {
   currentPayment = method;
@@ -328,6 +329,7 @@ function updateBillSummary() {
 function clearBill() {
   billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
   currentPayment = 'Cash';
+  editingBillId = null;
   renderBilling();
 }
 
@@ -376,7 +378,8 @@ function saveBill() {
   const phone = document.getElementById('b-phone').value.trim();
   const date = document.getElementById('b-date').value || today();
   const suffix = (document.getElementById('b-suffix')?.value || '').trim();
-  const billNo = nextBillNumber(suffix);
+  const billNo = editingBillId || nextBillNumber(suffix); // keep original ID if editing
+  editingBillId = null; // reset after use
   saveCustomerFromBill(customer, phone);
 
   const sale = { id: billNo, date, customer, phone, payment: currentPayment, items: valid, sub, itemDisc, billDisc, delivery, gst: gstAmt, calcTotal, roundOff, total, profit };
