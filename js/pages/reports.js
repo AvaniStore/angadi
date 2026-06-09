@@ -32,14 +32,16 @@ function renderReportTab(tab) {
 
 function reportMetricsHtml(s, from, to) {
   const margin = s.revenue > 0 ? ((s.profit / s.revenue) * 100).toFixed(1) : 0;
-
-  // Returns in period
   const periodReturns = (AppData.returns || []).filter(r => r.date >= from && r.date <= to);
   const totalReturns = periodReturns.reduce((a, r) => a + (r.refund || 0), 0);
-
-  // Write-offs in period
   const periodAdj = (AppData.adjustments || []).filter(a => a.date >= from && a.date <= to && a.type === 'Write-off');
   const totalLoss = periodAdj.reduce((a, w) => a + (w.loss || 0), 0);
+
+  // Payment breakdown
+  const periodSales = AppData.sales.filter(s => s.date >= from && s.date <= to);
+  const cashTotal = periodSales.filter(s => (s.payment||'Cash') === 'Cash').reduce((a,s) => a + s.total, 0);
+  const gpayTotal = periodSales.filter(s => s.payment === 'GPay').reduce((a,s) => a + s.total, 0);
+  const otherTotal = periodSales.filter(s => s.payment === 'Other').reduce((a,s) => a + s.total, 0);
 
   return `
     <div class="metrics-grid" style="margin-bottom:16px">
@@ -48,7 +50,9 @@ function reportMetricsHtml(s, from, to) {
       <div class="metric-card"><div class="metric-label">Margin</div><div class="metric-value ${parseFloat(margin) > 15 ? 'green' : 'amber'}">${margin}%</div></div>
       <div class="metric-card"><div class="metric-label">GST collected</div><div class="metric-value">${fmt(s.gst)}</div></div>
       <div class="metric-card"><div class="metric-label">Bills</div><div class="metric-value">${s.bills}</div></div>
-      <div class="metric-card"><div class="metric-label">Items sold</div><div class="metric-value">${s.items}</div></div>
+      <div class="metric-card"><div class="metric-label">💵 Cash</div><div class="metric-value">${fmt(cashTotal)}</div></div>
+      <div class="metric-card"><div class="metric-label">📱 GPay</div><div class="metric-value" style="color:#1d4ed8">${fmt(gpayTotal)}</div></div>
+      ${otherTotal > 0 ? `<div class="metric-card"><div class="metric-label">Other</div><div class="metric-value">${fmt(otherTotal)}</div></div>` : ''}
       ${totalReturns > 0 ? `<div class="metric-card"><div class="metric-label">Returns</div><div class="metric-value red">-${fmt(totalReturns)}</div></div>` : ''}
       ${totalLoss > 0 ? `<div class="metric-card"><div class="metric-label">Write-off loss</div><div class="metric-value red">-${fmt(totalLoss)}</div></div>` : ''}
       ${(totalReturns > 0 || totalLoss > 0) ? `<div class="metric-card"><div class="metric-label">Net profit</div><div class="metric-value green">${fmt(s.profit - totalReturns - totalLoss)}</div></div>` : ''}
