@@ -51,7 +51,9 @@ function handleGoogleSignIn() {
         await fetchUserInfo();
         await onSignedIn();
       } else {
+        // Silent refresh — just update token, don't re-render or interrupt the user
         console.log('Token refreshed silently ✓');
+        showToast('Session refreshed ✓');
       }
     },
   });
@@ -77,14 +79,14 @@ async function onSignedIn() {
     document.getElementById('user-info-sidebar').textContent = currentUser.email || currentUser.name || '';
   }
 
-  // Auto-refresh token every 50 minutes (tokens expire at 60 min)
+  // Auto-refresh token every 45 minutes silently (tokens expire at 60 min)
   clearInterval(window._tokenRefreshTimer);
-  window._tokenRefreshTimer = setInterval(async () => {
-    console.log('Auto-refreshing token...');
+  window._tokenRefreshTimer = setInterval(() => {
+    console.log('Auto-refreshing token silently...');
     if (tokenClient) {
       tokenClient.requestAccessToken({ prompt: '' });
     }
-  }, 50 * 60 * 1000);
+  }, 45 * 60 * 1000);
 
   showToast('Loading your data...');
   await loadFromDrive();
@@ -94,6 +96,7 @@ async function onSignedIn() {
 }
 
 function handleSignOut() {
+  clearInterval(window._tokenRefreshTimer);
   if (accessToken) {
     google.accounts.oauth2.revoke(accessToken, () => {});
     accessToken = null;
