@@ -3,6 +3,26 @@
 // ============================================================
 
 let billItems = [];
+let currentPayment = 'Cash'; // default
+
+function setPayment(method) {
+  currentPayment = method;
+  ['Cash','GPay','Other'].forEach(m => {
+    const btn = document.getElementById('pay-' + m.toLowerCase());
+    if (!btn) return;
+    if (m === method) {
+      btn.style.background = '#e8f5e8';
+      btn.style.borderColor = '#3a9e3a';
+      btn.style.color = '#2d7a2d';
+      btn.style.fontWeight = '600';
+    } else {
+      btn.style.background = '';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      btn.style.fontWeight = '';
+    }
+  });
+}
 
 function renderBilling() {
   if (!billItems.length) billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
@@ -16,7 +36,18 @@ function renderBilling() {
         <div class="form-group"><label>Customer name</label><input id="b-customer" placeholder="Walk-in customer"></div>
         <div class="form-group"><label>Phone (optional)</label><input id="b-phone" placeholder="9XXXXXXXXX" type="tel"></div>
         <div class="form-group"><label>Bill date</label><input id="b-date" type="date" value="${today()}"></div>
-        <div class="form-group"><label>Bill suffix <span style="font-size:11px;color:var(--text3)">— optional, e.g. A, B, DEL</span></label><input id="b-suffix" placeholder="e.g. A" maxlength="5" style="text-transform:uppercase"></div>
+        <div class="form-group"><label>Bill suffix <span style="font-size:11px;color:var(--text3)">— optional</span></label><input id="b-suffix" placeholder="e.g. A" maxlength="5" style="text-transform:uppercase"></div>
+        <div class="form-group">
+          <label>Payment method</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button type="button" id="pay-cash" onclick="setPayment('Cash')"
+              class="btn btn-sm" style="flex:1;background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600">💵 Cash</button>
+            <button type="button" id="pay-gpay" onclick="setPayment('GPay')"
+              class="btn btn-sm" style="flex:1">📱 GPay</button>
+            <button type="button" id="pay-other" onclick="setPayment('Other')"
+              class="btn btn-sm" style="flex:1">Other</button>
+          </div>
+        </div>
       </div>
       <div class="divider"></div>
       <div style="font-size:13px;font-weight:600;margin-bottom:10px">Items</div>
@@ -242,6 +273,7 @@ function updateBillSummary() {
 
 function clearBill() {
   billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
+  currentPayment = 'Cash';
   renderBilling();
 }
 
@@ -292,7 +324,7 @@ function saveBill() {
   const suffix = (document.getElementById('b-suffix')?.value || '').trim();
   const billNo = nextBillNumber(suffix);
 
-  const sale = { id: billNo, date, customer, phone, items: valid, sub, itemDisc, billDisc, delivery, gst: gstAmt, calcTotal, roundOff, total, profit };
+  const sale = { id: billNo, date, customer, phone, payment: currentPayment, items: valid, sub, itemDisc, billDisc, delivery, gst: gstAmt, calcTotal, roundOff, total, profit };
   AppData.sales.push(sale);
 
   valid.forEach(it => {
@@ -302,6 +334,7 @@ function saveBill() {
 
   autoSave();
   showToast('Bill saved ✓');
+  currentPayment = 'Cash';
   showInvoice(sale);
   billItems = [];
 }
@@ -362,7 +395,8 @@ function buildInvoiceHtml(sale, rows, s) {
           <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7">
             Bill # ${sale.id}<br>
             Date: ${fmtDate(sale.date)}<br>
-            Customer: <strong>${sale.customer}</strong>${sale.phone ? '<br>Ph: ' + sale.phone : ''}
+            Customer: <strong>${sale.customer}</strong>${sale.phone ? '<br>Ph: ' + sale.phone : ''}<br>
+            Payment: <strong>${sale.payment || 'Cash'}</strong>
           </div>
         </div>
       </div>
