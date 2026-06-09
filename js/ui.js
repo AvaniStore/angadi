@@ -14,7 +14,7 @@ function showPage(name, el) {
     if (navEl) navEl.classList.add('active');
   }
   currentPage = name;
-  const titles = { dashboard: 'Dashboard', inventory: 'Inventory', billing: 'New Bill', vendors: 'Vendors', reports: 'Reports', sales: 'Sales History', settings: 'Settings' };
+  const titles = { dashboard: 'Dashboard', inventory: 'Inventory', billing: 'New Bill', vendors: 'Vendors', reports: 'Reports', sales: 'Sales History', customers: 'Customers', settings: 'Settings' };
   document.getElementById('topbar-title').textContent = titles[name] || name;
   renderCurrentPage();
 
@@ -32,6 +32,7 @@ function renderCurrentPage() {
     vendors: renderVendors,
     reports: renderReports,
     sales: renderSales,
+    customers: renderCustomers,
     settings: renderSettings,
   };
   if (renderers[currentPage]) renderers[currentPage]();
