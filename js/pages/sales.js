@@ -7,6 +7,7 @@ let salesCustomFrom = '';
 let salesCustomTo = '';
 let salesPaymentFilter = 'all';
 let salesCustomerFilter = '';
+let salesSortDir = 'desc'; // newest first
 
 function getFilteredSales() {
   const todayStr = today();
@@ -21,16 +22,23 @@ function getFilteredSales() {
     from = d.toISOString().slice(0,10); to = todayStr;
   } else if (salesFilter === 'custom') {
     from = salesCustomFrom; to = salesCustomTo;
-    if (!from || !to) return AppData.sales.slice().reverse();
+    if (!from || !to) from = '2000-01-01';
   } else {
     from = '2000-01-01'; to = todayStr;
   }
-  return AppData.sales.filter(s => {
+  const filtered = AppData.sales.filter(s => {
     const dateMatch = s.date >= from && s.date <= to;
     const payMatch = salesPaymentFilter === 'all' || (s.payment || 'Cash') === salesPaymentFilter;
     const custMatch = !salesCustomerFilter || (s.customer||'').toLowerCase().includes(salesCustomerFilter.toLowerCase());
     return dateMatch && payMatch && custMatch;
-  }).slice().reverse();
+  });
+  // Always sort by date then by bill ID for same-day bills
+  filtered.sort((a, b) => {
+    const dateCmp = b.date.localeCompare(a.date);
+    if (dateCmp !== 0) return salesSortDir === 'desc' ? dateCmp : -dateCmp;
+    return salesSortDir === 'desc' ? b.id.localeCompare(a.id) : a.id.localeCompare(b.id);
+  });
+  return filtered;
 }
 
 function setSalesFilter(f) {
@@ -103,10 +111,15 @@ function renderSales() {
   document.getElementById('page-sales').innerHTML = `
     <div class="page-header">
       <h2 class="page-title">Sales History</h2>
-      <div style="font-size:13px;color:var(--text2)">
-        ${filtered.length} bills &nbsp;·&nbsp; ${fmt(totalRev)} &nbsp;·&nbsp;
-        <span style="color:var(--accent-dark)">${fmt(totalProfit)} profit</span>
-        ${totalReturns > 0 ? ` &nbsp;·&nbsp; <span style="color:var(--red)">-${fmt(totalReturns)} returns</span>` : ''}
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button onclick="salesSortDir=salesSortDir==='desc'?'asc':'desc';renderSales()" class="btn btn-sm">
+          ${salesSortDir === 'desc' ? '↓ Newest first' : '↑ Oldest first'}
+        </button>
+        <div style="font-size:13px;color:var(--text2)">
+          ${filtered.length} bills &nbsp;·&nbsp; ${fmt(totalRev)} &nbsp;·&nbsp;
+          <span style="color:var(--accent-dark)">${fmt(totalProfit)} profit</span>
+          ${totalReturns > 0 ? ` &nbsp;·&nbsp; <span style="color:var(--red)">-${fmt(totalReturns)} returns</span>` : ''}
+        </div>
       </div>
     </div>
 
