@@ -83,6 +83,9 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
+  const cashToday = todaySales.filter(s => (s.payment||'Cash')==='Cash').reduce((a,s) => a+s.total, 0);
+  const gpayToday = todaySales.filter(s => s.payment==='GPay').reduce((a,s) => a+s.total, 0);
+
   document.getElementById('page-dashboard').innerHTML = `
     <div style="margin-bottom:6px">
       <h2 style="font-size:20px;font-weight:700">${AppData.settings.shopName || 'My Shop'}</h2>
@@ -93,6 +96,8 @@ function renderDashboard() {
       <div class="metric-card"><div class="metric-label">Today's revenue</div><div class="metric-value">${fmt(rev)}</div></div>
       <div class="metric-card"><div class="metric-label">Today's profit</div><div class="metric-value green">${fmt(prof)}</div></div>
       <div class="metric-card"><div class="metric-label">Bills today</div><div class="metric-value">${todaySales.length}</div></div>
+      <div class="metric-card"><div class="metric-label">💵 Cash today</div><div class="metric-value">${fmt(cashToday)}</div></div>
+      <div class="metric-card"><div class="metric-label">📱 GPay today</div><div class="metric-value" style="color:#1d4ed8">${fmt(gpayToday)}</div></div>
       <div class="metric-card"><div class="metric-label">Total products</div><div class="metric-value">${AppData.products.length}</div></div>
       <div class="metric-card"><div class="metric-label">Low / out of stock</div><div class="metric-value ${outItems.length ? 'red' : lowItems.length ? 'amber' : ''}">${lowItems.length + outItems.length}</div></div>
     </div>
