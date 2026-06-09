@@ -6,6 +6,7 @@ let salesFilter = 'all';
 let salesCustomFrom = '';
 let salesCustomTo = '';
 let salesPaymentFilter = 'all';
+let salesCustomerFilter = '';
 
 function getFilteredSales() {
   const todayStr = today();
@@ -27,7 +28,8 @@ function getFilteredSales() {
   return AppData.sales.filter(s => {
     const dateMatch = s.date >= from && s.date <= to;
     const payMatch = salesPaymentFilter === 'all' || (s.payment || 'Cash') === salesPaymentFilter;
-    return dateMatch && payMatch;
+    const custMatch = !salesCustomerFilter || (s.customer||'').toLowerCase().includes(salesCustomerFilter.toLowerCase());
+    return dateMatch && payMatch && custMatch;
   }).slice().reverse();
 }
 
@@ -122,6 +124,13 @@ function renderSales() {
         Other &nbsp;<strong>${fmt(otherAmt)}</strong>
         <span style="font-size:11px;color:#374151;margin-left:4px">${filtered.filter(s=>s.payment==='Other').length} bills</span>
       </div>` : ''}
+    </div>
+
+    <!-- Customer search -->
+    <div style="margin-bottom:10px">
+      <input type="text" placeholder="🔍 Search by customer name..." value="${salesCustomerFilter}"
+        oninput="salesCustomerFilter=this.value;renderSales()"
+        style="width:100%;max-width:300px;padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
     </div>
 
     <!-- Date filter tabs -->
