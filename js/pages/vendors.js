@@ -5,20 +5,33 @@
 let poItems = []; // items in current PO
 
 function renderVendors() {
-  const vendorCards = AppData.vendors.map(v => `
-    <div class="card" style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
-          <div style="font-weight:600;font-size:14px">${v.name}</div>
-          <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.8">
-            📍 ${v.city || '—'} &nbsp;·&nbsp; 📞 ${v.phone || '—'}
-            ${v.gstin ? `<br>GSTIN: ${v.gstin}` : ''}
-          </div>
-        </div>
-        <button class="btn btn-xs btn-danger" onclick="deleteVendor('${v.id}')">Delete</button>
+  const vendorCards = AppData.vendors.length ? `
+    <details ${AppData.vendors.length <= 4 ? 'open' : ''}>
+      <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--accent-dark);padding:8px 0;list-style:none;display:flex;align-items:center;gap:6px">
+        <span>${AppData.vendors.length > 4 ? '▶' : '▼'}</span>
+        ${AppData.vendors.length} vendor${AppData.vendors.length!==1?'s':''} — click to ${AppData.vendors.length > 4 ? 'expand' : 'collapse'}
+      </summary>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:10px">
+        ${AppData.vendors.map(v => `
+          <div class="card" style="margin-bottom:0;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div style="min-width:0">
+                <div style="font-weight:600;font-size:14px">${v.name}</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:3px;line-height:1.7">
+                  ${v.city ? `📍 ${v.city}` : ''}${v.phone ? ` &nbsp;·&nbsp; 📞 ${v.phone}` : ''}
+                  ${v.brands ? `<br>Brands: <span style="color:var(--text2)">${v.brands}</span>` : ''}
+                  ${v.products ? `<br>Products: <span style="color:var(--text2)">${v.products}</span>` : ''}
+                  ${v.gstin ? `<br>GSTIN: ${v.gstin}` : ''}
+                </div>
+              </div>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                <button class="btn btn-xs" onclick="editVendor('${v.id}')">Edit</button>
+                <button class="btn btn-xs btn-danger" onclick="deleteVendor('${v.id}')">Del</button>
+              </div>
+            </div>
+          </div>`).join('')}
       </div>
-    </div>
-  `).join('') || '<div class="empty-state"><p>No vendors added yet.</p></div>';
+    </details>` : '<div class="empty-state"><p>No vendors added yet.</p></div>';
 
   const poRows = AppData.purchases.slice().reverse().slice(0, 20).map(po => `
     <tr>
@@ -27,6 +40,11 @@ function renderVendors() {
       <td style="font-weight:500">${po.vendor}</td>
       <td>${po.items ? po.items.length + ' item' + (po.items.length !== 1 ? 's' : '') : po.product}</td>
       <td style="font-weight:600">${fmt(po.total)}</td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:10px;${
+        (po.payment||'Cash')==='Cash'?'background:#dcfce7;color:#166534':
+        po.payment==='GPay'?'background:#dbeafe;color:#1d4ed8':
+        po.payment==='Credit'?'background:#fef3c7;color:#92400e':
+        'background:#f3e8ff;color:#7e22ce'}">${po.payment||'Cash'}</span></td>
       <td><button class="btn btn-xs" onclick="viewPurchaseBill('${po.id}')">Bill</button></td>
     </tr>
   `).join('') || `<tr><td colspan="6"><div class="empty-state"><p>No purchases recorded yet.</p></div></td></tr>`;
@@ -60,6 +78,20 @@ function renderVendors() {
           <label>Date</label>
           <input id="po-date" type="date" value="${today()}" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
         </div>
+        <div class="form-group">
+          <label>Payment method</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button type="button" id="po-pay-cash" onclick="setPOPayment('Cash')"
+              class="btn btn-sm" style="flex:1;background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600">💵 Cash</button>
+            <button type="button" id="po-pay-gpay" onclick="setPOPayment('GPay')"
+              class="btn btn-sm" style="flex:1">📱 GPay</button>
+            <button type="button" id="po-pay-bank" onclick="setPOPayment('Bank Transfer')"
+              class="btn btn-sm" style="flex:1">🏦 Bank</button>
+            <button type="button" id="po-pay-credit" onclick="setPOPayment('Credit')"
+              class="btn btn-sm" style="flex:1">📋 Credit</button>
+          </div>
+          <input type="hidden" id="po-payment" value="Cash">
+        </div>
       </div>
 
       <div style="font-size:13px;font-weight:600;margin:14px 0 8px">Products received</div>
@@ -86,7 +118,7 @@ function renderVendors() {
     <div class="table-wrap">
       <div style="padding:12px 14px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border)">Purchase history</div>
       <table>
-        <thead><tr><th>PO #</th><th>Date</th><th>Vendor</th><th>Items</th><th>Total</th><th></th></tr></thead>
+        <thead><tr><th>PO #</th><th>Date</th><th>Vendor</th><th>Items</th><th>Total</th><th>Payment</th><th></th></tr></thead>
         <tbody>${poRows}</tbody>
       </table>
     </div>
@@ -195,6 +227,20 @@ function poPickProduct(i, pid) {
 }
 function poSetQty(i, v) { poItems[i].qty = parseInt(v) || 1; updatePOTotal(); }
 function poSetCost(i, v) { poItems[i].cost = parseFloat(v) || 0; updatePOTotal(); }
+function setPOPayment(method) {
+  document.getElementById('po-payment').value = method;
+  const styles = {
+    'Cash': 'background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600',
+    'GPay': 'background:#dbeafe;border-color:#3b82f6;color:#1d4ed8;font-weight:600',
+    'Bank Transfer': 'background:#f3e8ff;border-color:#9333ea;color:#7e22ce;font-weight:600',
+    'Credit': 'background:#fef3c7;border-color:#d97706;color:#92400e;font-weight:600',
+  };
+  ['Cash','GPay','Bank Transfer','Credit'].forEach(m => {
+    const btn = document.getElementById('po-pay-' + m.toLowerCase().replace(' ','').replace('transfer','bank').replace('credit','credit'));
+    if (btn) btn.style.cssText = m === method ? styles[m] : '';
+  });
+}
+
 function addPORow() { poItems.push({ pid: '', name: '', brand: '', qty: 1, cost: 0 }); renderPORows(); }
 function removePORow(i) { poItems.splice(i, 1); if (!poItems.length) addPORow(); else renderPORows(); }
 function clearPO() { poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }]; renderVendors(); }
@@ -234,12 +280,13 @@ function savePurchaseOrder() {
     });
   });
 
+  const payment = document.getElementById('po-payment')?.value || 'Cash';
+
   const purchase = {
     id: uid(), poNumber, date,
     vendorId, vendor: vendor.name,
     items: poItemDetails,
-    total, billNo,
-    // Legacy fields for backward compat
+    total, billNo, payment,
     product: poItemDetails.map(i => i.product).join(', '),
     qty: poItemDetails.reduce((a, i) => a + i.qty, 0),
     costPerUnit: 0,
@@ -279,7 +326,8 @@ function showPurchaseBill(po, vendor) {
           <div style="font-size:12px;color:#555;margin-top:4px;line-height:1.7">
             PO # <strong>${po.poNumber || po.id}</strong><br>
             Date: ${fmtDate(po.date)}
-            ${po.billNo ? '<br>Vendor Bill #: '+po.billNo : ''}
+            ${po.billNo ? '<br>Vendor Bill #: '+po.billNo : ''}<br>
+            Payment: <strong>${po.payment || 'Cash'}</strong>
           </div>
         </div>
       </div>
@@ -336,21 +384,34 @@ function viewPurchaseBill(id) {
   showPurchaseBill(po, vendor);
 }
 
-function openVendorForm() {
+function openVendorForm(id) {
+  const v = id ? AppData.vendors.find(x => x.id === id) : null;
   const formHtml = `
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title">Add vendor</div>
+      <div class="card-title">${v ? 'Edit vendor' : 'Add vendor'}</div>
       <div class="form-grid">
-        <div class="form-group"><label>Vendor name *</label><input id="vf-name" placeholder="Distributor / supplier name"></div>
-        <div class="form-group"><label>Phone</label><input id="vf-phone" placeholder="9XXXXXXXXX" type="tel"></div>
-        <div class="form-group"><label>City</label><input id="vf-city" placeholder="Mangaluru"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-group"><label>GSTIN (optional)</label><input id="vf-gstin" placeholder="29XXXXX..."></div>
-        <div class="form-group"><label>Email (optional)</label><input id="vf-email" type="email" placeholder="vendor@email.com"></div>
+        <div class="form-group"><label>Vendor name *</label><input id="vf-name" value="${v?v.name:''}" placeholder="Distributor / supplier name"></div>
+        <div class="form-group"><label>Phone</label><input id="vf-phone" value="${v?v.phone||'':''}" placeholder="9XXXXXXXXX" type="tel"></div>
+        <div class="form-group"><label>City</label><input id="vf-city" value="${v?v.city||'':''}" placeholder="Mangaluru"></div>
+        <div class="form-group"><label>GSTIN (optional)</label><input id="vf-gstin" value="${v?v.gstin||'':''}" placeholder="29XXXXX..."></div>
+        <div class="form-group"><label>Brands supplied</label><input id="vf-brands" value="${v?v.brands||'':''}" placeholder="e.g. 24 Mantra, Go Earth"></div>
+        <div class="form-group"><label>Products supplied</label><input id="vf-products" value="${v?v.products||'':''}" placeholder="e.g. Oils, Pulses, Jaggery"></div>
+        <div class="form-group">
+          <label>Preferred payment</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button type="button" id="vf-pay-cash" onclick="setVendorPayment('Cash')"
+              class="btn btn-sm" style="${(!v||v.payment==='Cash')?'background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600':''}">💵 Cash</button>
+            <button type="button" id="vf-pay-gpay" onclick="setVendorPayment('GPay')"
+              class="btn btn-sm" style="${v&&v.payment==='GPay'?'background:#dbeafe;border-color:#3b82f6;color:#1d4ed8;font-weight:600':''}">📱 GPay</button>
+            <button type="button" id="vf-pay-bank" onclick="setVendorPayment('Bank Transfer')"
+              class="btn btn-sm" style="${v&&v.payment==='Bank Transfer'?'background:#f3e8ff;border-color:#9333ea;color:#7e22ce;font-weight:600':''}">🏦 Bank</button>
+          </div>
+          <input type="hidden" id="vf-payment" value="${v?v.payment||'Cash':'Cash'}">
+        </div>
+        <div class="form-group"><label>Email (optional)</label><input id="vf-email" type="email" value="${v?v.email||'':''}" placeholder="vendor@email.com"></div>
       </div>
       <div class="form-actions">
-        <button class="btn btn-primary" onclick="saveVendor()">Save vendor</button>
+        <button class="btn btn-primary" onclick="saveVendor('${id||''}')">Save vendor</button>
         <button class="btn" onclick="renderVendors()">Cancel</button>
       </div>
     </div>
@@ -359,17 +420,43 @@ function openVendorForm() {
   if (container) { container.innerHTML = formHtml; document.getElementById('vf-name').focus(); }
 }
 
-function saveVendor() {
+function setVendorPayment(method) {
+  document.getElementById('vf-payment').value = method;
+  ['Cash','GPay','Bank Transfer'].forEach(m => {
+    const btn = document.getElementById('vf-pay-' + m.toLowerCase().replace(' ',''));
+    if (!btn) return;
+    const styles = {
+      'Cash': 'background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600',
+      'GPay': 'background:#dbeafe;border-color:#3b82f6;color:#1d4ed8;font-weight:600',
+      'Bank Transfer': 'background:#f3e8ff;border-color:#9333ea;color:#7e22ce;font-weight:600'
+    };
+    btn.style.cssText = m === method ? styles[m] : '';
+  });
+}
+
+function editVendor(id) { openVendorForm(id); }
+
+function saveVendor(id) {
   const name = document.getElementById('vf-name').value.trim();
   if (!name) { showToast('Vendor name is required'); return; }
-  AppData.vendors.push({
-    id: uid(), name,
+  const data = {
+    name,
     phone: document.getElementById('vf-phone').value.trim(),
     city: document.getElementById('vf-city').value.trim(),
     gstin: document.getElementById('vf-gstin').value.trim(),
     email: document.getElementById('vf-email').value.trim(),
-  });
-  showToast('Vendor added ✓');
+    brands: document.getElementById('vf-brands').value.trim(),
+    products: document.getElementById('vf-products').value.trim(),
+    payment: document.getElementById('vf-payment').value || 'Cash',
+  };
+  if (id) {
+    const idx = AppData.vendors.findIndex(v => v.id === id);
+    if (idx >= 0) AppData.vendors[idx] = { ...AppData.vendors[idx], ...data };
+    showToast('Vendor updated ✓');
+  } else {
+    AppData.vendors.push({ id: uid(), ...data });
+    showToast('Vendor added ✓');
+  }
   autoSave();
   renderVendors();
 }
