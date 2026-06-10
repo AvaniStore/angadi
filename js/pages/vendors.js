@@ -80,15 +80,15 @@ function renderVendors() {
         </div>
         <div class="form-group">
           <label>Payment method</label>
-          <div style="display:flex;gap:8px;margin-top:4px">
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
             <button type="button" id="po-pay-cash" onclick="setPOPayment('Cash')"
-              class="btn btn-sm" style="flex:1;background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600">💵 Cash</button>
+              class="btn btn-sm" style="background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600">💵 Cash</button>
             <button type="button" id="po-pay-gpay" onclick="setPOPayment('GPay')"
-              class="btn btn-sm" style="flex:1">📱 GPay</button>
+              class="btn btn-sm">📱 GPay</button>
             <button type="button" id="po-pay-bank" onclick="setPOPayment('Bank Transfer')"
-              class="btn btn-sm" style="flex:1">🏦 Bank</button>
+              class="btn btn-sm">🏦 Bank Transfer</button>
             <button type="button" id="po-pay-credit" onclick="setPOPayment('Credit')"
-              class="btn btn-sm" style="flex:1">📋 Credit</button>
+              class="btn btn-sm">📋 Credit</button>
           </div>
           <input type="hidden" id="po-payment" value="Cash">
         </div>
@@ -235,8 +235,9 @@ function setPOPayment(method) {
     'Bank Transfer': 'background:#f3e8ff;border-color:#9333ea;color:#7e22ce;font-weight:600',
     'Credit': 'background:#fef3c7;border-color:#d97706;color:#92400e;font-weight:600',
   };
-  ['Cash','GPay','Bank Transfer','Credit'].forEach(m => {
-    const btn = document.getElementById('po-pay-' + m.toLowerCase().replace(' ','').replace('transfer','bank').replace('credit','credit'));
+  const ids = { 'Cash': 'po-pay-cash', 'GPay': 'po-pay-gpay', 'Bank Transfer': 'po-pay-bank', 'Credit': 'po-pay-credit' };
+  Object.keys(ids).forEach(m => {
+    const btn = document.getElementById(ids[m]);
     if (btn) btn.style.cssText = m === method ? styles[m] : '';
   });
 }
@@ -398,13 +399,13 @@ function openVendorForm(id) {
         <div class="form-group"><label>Products supplied</label><input id="vf-products" value="${v?v.products||'':''}" placeholder="e.g. Oils, Pulses, Jaggery"></div>
         <div class="form-group">
           <label>Preferred payment</label>
-          <div style="display:flex;gap:8px;margin-top:4px">
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
             <button type="button" id="vf-pay-cash" onclick="setVendorPayment('Cash')"
               class="btn btn-sm" style="${(!v||v.payment==='Cash')?'background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600':''}">💵 Cash</button>
             <button type="button" id="vf-pay-gpay" onclick="setVendorPayment('GPay')"
               class="btn btn-sm" style="${v&&v.payment==='GPay'?'background:#dbeafe;border-color:#3b82f6;color:#1d4ed8;font-weight:600':''}">📱 GPay</button>
             <button type="button" id="vf-pay-bank" onclick="setVendorPayment('Bank Transfer')"
-              class="btn btn-sm" style="${v&&v.payment==='Bank Transfer'?'background:#f3e8ff;border-color:#9333ea;color:#7e22ce;font-weight:600':''}">🏦 Bank</button>
+              class="btn btn-sm" style="${v&&v.payment==='Bank Transfer'?'background:#f3e8ff;border-color:#9333ea;color:#7e22ce;font-weight:600':''}">🏦 Bank Transfer</button>
           </div>
           <input type="hidden" id="vf-payment" value="${v?v.payment||'Cash':'Cash'}">
         </div>
