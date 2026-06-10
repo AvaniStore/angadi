@@ -45,7 +45,13 @@ function renderVendors() {
         po.payment==='GPay'?'background:#dbeafe;color:#1d4ed8':
         po.payment==='Credit'?'background:#fef3c7;color:#92400e':
         'background:#f3e8ff;color:#7e22ce'}">${po.payment||'Cash'}</span></td>
-      <td><button class="btn btn-xs" onclick="viewPurchaseBill('${po.id}')">Bill</button></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-xs" onclick="viewPurchaseBill('${po.id}')">Bill</button>
+          <button class="btn btn-xs" style="color:var(--blue);border-color:#93c5fd" onclick="editPurchaseOrder('${po.id}')">Edit</button>
+          <button class="btn btn-xs btn-danger" onclick="deletePurchaseOrder('${po.id}')">Del</button>
+        </div>
+      </td>
     </tr>
   `).join('') || `<tr><td colspan="6"><div class="empty-state"><p>No purchases recorded yet.</p></div></td></tr>`;
 
@@ -264,7 +270,9 @@ function savePurchaseOrder() {
   const vendor = AppData.vendors.find(v => v.id === vendorId);
   if (!vendor) return;
 
-  const poNumber = nextPONumber();
+  const poNumber = window._editingPONumber || nextPONumber();
+  window._editingPONumber = null;
+  window._editingPOId = null;
   const poItemDetails = [];
   let total = 0;
 
@@ -376,6 +384,74 @@ function showPurchaseBill(po, vendor) {
     </div>
   `;
   document.getElementById('purchase-bill-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function deletePurchaseOrder(id) {
+  const po = AppData.purchases.find(p => p.id === id);
+  if (!po) return;
+  if (!confirmDelete(`Delete PO ${po.poNumber || po.id}? This will NOT reverse stock changes already made.`)) return;
+  AppData.purchases = AppData.purchases.filter(p => p.id !== id);
+  autoSave();
+  showToast('Purchase order deleted');
+  renderVendors();
+}
+
+function editPurchaseOrder(id) {
+  const po = AppData.purchases.find(p => p.id === id);
+  if (!po) return;
+  if (!confirm(`Edit PO ${po.poNumber || po.id}?\n\nStock changes from the original PO will be reversed before re-saving.`)) return;
+
+  // Reverse stock changes from original PO
+  (po.items || []).forEach(it => {
+    const p = AppData.products.find(x => x.id === it.pid);
+    if (p) p.stock -= it.qty;
+  });
+
+  // Remove old PO
+  AppData.purchases = AppData.purchases.filter(p => p.id !== id);
+
+  // Load PO items into the form
+  poItems = (po.items || []).map(it => ({ ...it }));
+
+  renderVendors();
+
+  // Pre-fill form fields after render
+  setTimeout(() => {
+    const vendorEl = document.getElementById('po-vendor');
+    const billnoEl = document.getElementById('po-billno');
+    const dateEl = document.getElementById('po-date');
+    if (vendorEl) vendorEl.value = po.vendorId || '';
+    if (billnoEl) billnoEl.value = po.billNo || '';
+    if (dateEl) dateEl.value = po.date || today(); // preserve original date
+    if (po.payment) setPOPayment(po.payment);
+    renderPORows();
+
+    // Store original PO info
+    window._editingPOId = id;
+    window._editingPONumber = po.poNumber;
+
+    // Show amber editing banner above the PO form
+    const poSection = document.getElementById('po-rows')?.closest('.card');
+    if (poSection && !document.getElementById('po-edit-banner')) {
+      const banner = document.createElement('div');
+      banner.id = 'po-edit-banner';
+      banner.style.cssText = 'background:#fef3c7;border:1px solid #d97706;border-radius:var(--radius);padding:8px 14px;margin-bottom:10px;font-size:13px;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:10px';
+      banner.innerHTML = `<span>✏️ Editing <strong>${po.poNumber || po.id}</strong> — original date &amp; PO number preserved. Only fix errors.</span>
+        <button class="btn btn-xs" onclick="cancelPOEdit()" style="color:#92400e;border-color:#d97706;white-space:nowrap">✕ Cancel</button>`;
+      poSection.insertAdjacentElement('beforebegin', banner);
+    }
+
+    banner?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast(`Editing PO ${po.poNumber || po.id} — fix errors and confirm`);
+  }, 150);
+}
+
+function cancelPOEdit() {
+  window._editingPOId = null;
+  window._editingPONumber = null;
+  poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }];
+  renderVendors();
+  showToast('Edit cancelled');
 }
 
 function viewPurchaseBill(id) {
