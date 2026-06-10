@@ -10,6 +10,7 @@ function renderReports() {
     <div class="tabs">
       <button class="tab-btn ${activeReportTab === 'daily' ? 'active' : ''}" onclick="switchReportTab('daily', this)">Daily</button>
       <button class="tab-btn ${activeReportTab === 'weekly' ? 'active' : ''}" onclick="switchReportTab('weekly', this)">Weekly</button>
+      <button class="tab-btn ${activeReportTab === 'monthly' ? 'active' : ''}" onclick="switchReportTab('monthly', this)">Monthly</button>
       <button class="tab-btn ${activeReportTab === 'range' ? 'active' : ''}" onclick="switchReportTab('range', this)">Date range</button>
     </div>
     <div id="report-content"></div>
@@ -27,6 +28,7 @@ function switchReportTab(tab, btn) {
 function renderReportTab(tab) {
   if (tab === 'daily') renderDailyReport();
   else if (tab === 'weekly') renderWeeklyReport();
+  else if (tab === 'monthly') renderMonthlyReport();
   else if (tab === 'range') renderRangeReport();
 }
 
@@ -118,6 +120,59 @@ function renderWeeklyReport() {
     </div>
     ${salesTableHtml(salesArr)}
   `;
+}
+
+function renderMonthlyReport() {
+  // Get all months that have sales
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+
+  // Build last 12 months
+  const months = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(currentYear, currentMonth - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
+    const lastDay = new Date(year, month+1, 0).getDate();
+    const to = `${year}-${String(month+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    const salesArr = salesInRange(from, to);
+    const s = reportSummary(salesArr);
+    if (salesArr.length > 0 || i === 0) {
+      months.push({ from, to, label, s, salesArr });
+    }
+  }
+
+  const selectedMonth = (document.getElementById('month-select') || {}).value || months[0]?.from || '';
+
+  const monthOptions = months.map(m =>
+    `<option value="${m.from}" ${m.from === selectedMonth ? 'selected' : ''}>${m.label} (${m.salesArr.length} bills)</option>`
+  ).join('');
+
+  document.getElementById('report-content').innerHTML = `
+    <div class="card" style="margin-bottom:14px">
+      <div class="form-group" style="margin:0">
+        <label>Select month</label>
+        <select id="month-select" onchange="renderMonthlyReport()"
+          style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%;max-width:280px">
+          ${monthOptions}
+        </select>
+      </div>
+    </div>
+    <div id="monthly-result"></div>
+  `;
+
+  // Show selected month data
+  const selected = months.find(m => m.from === selectedMonth) || months[0];
+  if (selected) {
+    document.getElementById('monthly-result').innerHTML = `
+      <div style="font-size:13px;color:var(--text3);margin-bottom:12px">${selected.label} — ${fmtDate(selected.from)} to ${fmtDate(selected.to)}</div>
+      ${reportMetricsHtml(selected.s, selected.from, selected.to)}
+      ${salesTableHtml(selected.salesArr)}
+    `;
+  }
 }
 
 function renderRangeReport() {
