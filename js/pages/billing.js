@@ -79,6 +79,9 @@ function renderBilling() {
       <h2 class="page-title">New Bill</h2>
     </div>
     <div class="card">
+      ${editingBillId ? `<div style="background:#fef3c7;border:1px solid #d97706;border-radius:var(--radius);padding:8px 14px;margin-bottom:12px;font-size:13px;color:#92400e">
+        ✏️ Editing bill <strong>${editingBillId}</strong> — Cost (₹) column is now visible. Update costs to fix profit figures.
+      </div>` : ''}
       <div class="form-grid">
         <div class="form-group">
           <label>Customer name</label>
@@ -106,11 +109,12 @@ function renderBilling() {
       </div>
       <div class="divider"></div>
       <div style="font-size:13px;font-weight:600;margin-bottom:10px">Items</div>
-      <div style="display:grid;grid-template-columns:1fr 70px 90px 70px 80px 32px;gap:8px;margin-bottom:6px">
+      <div style="display:grid;grid-template-columns:1fr 70px 90px 70px ${editingBillId ? '80px' : ''} 80px 32px;gap:8px;margin-bottom:6px">
         <span style="font-size:11px;color:var(--text3)">Product</span>
         <span style="font-size:11px;color:var(--text3)">Qty</span>
         <span style="font-size:11px;color:var(--text3)">Price (₹)</span>
         <span style="font-size:11px;color:var(--text3)">Disc%</span>
+        ${editingBillId ? '<span style="font-size:11px;color:var(--amber)">Cost (₹)</span>' : ''}
         <span style="font-size:11px;color:var(--text3)">Amount</span>
         <span></span>
       </div>
@@ -154,8 +158,10 @@ function renderBilling() {
 }
 
 function renderBillRows() {
+  const showCost = !!editingBillId;
+  const gridCols = showCost ? '1fr 70px 90px 70px 80px 80px 32px' : '1fr 70px 90px 70px 80px 32px';
   const html = billItems.map((it, i) => `
-    <div style="display:grid;grid-template-columns:1fr 70px 90px 70px 80px 32px;gap:8px;align-items:center;margin-bottom:6px" id="bill-row-${i}">
+    <div style="display:grid;grid-template-columns:${gridCols};gap:8px;align-items:center;margin-bottom:6px" id="bill-row-${i}">
       <div style="position:relative">
         <input
           id="bill-search-${i}"
@@ -176,6 +182,9 @@ function renderBillRows() {
         style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
       <input type="number" step="1" min="0" value="${it.price || ''}" oninput="billSetPrice(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:100%">
       <input type="number" min="0" max="100" step="1" value="${it.discount || 0}" oninput="billSetDiscount(${i}, this.value)" placeholder="0" style="padding:6px 8px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);text-align:center;width:100%">
+      ${showCost ? `<input type="number" step="1" min="0" value="${it.cost || 0}" oninput="billSetCost(${i}, this.value)"
+        title="Cost price for profit calculation"
+        style="padding:6px 8px;border:1px solid #fcd34d;border-radius:var(--radius);font-size:13px;background:#fffbeb;color:var(--text);width:100%">` : ''}
       <span id="bill-amt-${i}" style="font-size:13px;font-weight:600;display:flex;align-items:center">${it.pid ? fmt(calcItemTotal(it)) : '—'}</span>
       <button onclick="removeBillRow(${i})" style="padding:4px 6px;border:1px solid #fca5a5;border-radius:var(--radius);background:transparent;color:var(--red);cursor:pointer;font-size:12px">✕</button>
     </div>
@@ -257,6 +266,11 @@ function billPickProduct(i, pid) {
   const inputAfter = document.getElementById(`bill-search-${i}`);
   if (inputAfter && p) { inputAfter.value = p.name + (p.brand ? ' (' + p.brand + ')' : ''); inputAfter.style.borderColor = 'var(--accent)'; }
 }
+function billSetCost(i, v) {
+  billItems[i].cost = parseFloat(v) || 0;
+  updateBillSummary();
+}
+
 function billSetQty(i, v) {
   billItems[i].qty = parseFloat(v) || 1;
   const amtEl = document.getElementById(`bill-amt-${i}`);
