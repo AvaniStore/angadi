@@ -36,6 +36,18 @@ function renderSettings() {
 
     <div class="card">
       <div class="settings-section">
+        <h3>Fix historical profit figures</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Bills created before cost prices were set show 100% profit. Recalculate all bills using current inventory cost prices.</p>
+        <p style="font-size:12px;color:var(--amber);margin-bottom:14px">⚠ This uses current cost prices, not the cost at time of sale. Results are approximate but much more accurate than 100%.</p>
+        <div id="recalc-result" style="font-size:13px;color:var(--accent-dark);margin-bottom:10px"></div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="recalculateAllProfits()">🔄 Recalculate all bill profits</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-section">
         <h3>Data management</h3>
         <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Your data is auto-saved to Google Drive. You can also export a backup.</p>
         <div class="form-actions">
@@ -214,7 +226,66 @@ function resetBillingData() {
   renderSettings();
 }
 
-function factoryReset() {
+function recalculateAllProfits() {
+  if (!confirm(`Recalculate profit for all ${AppData.sales.length} bills using current inventory cost prices?\n\nThis will update profit figures for bills where cost was ₹0. Cannot be undone.`)) return;
+
+  let fixed = 0;
+  let zeroProfit = 0;
+  let skipped = 0;
+
+  AppData.sales.forEach(sale => {
+    let newProfit = 0;
+    let hasZeroCost = false;
+    let allCostsFound = true;
+
+    (sale.items || []).forEach(item => {
+      const product = AppData.products.find(p => p.id === item.pid);
+      const itemRevenue = (parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0) * (1 - (parseFloat(item.discount) || 0) / 100);
+      const currentCost = product ? (parseFloat(product.cost) || 0) : (parseFloat(item.cost) || 0);
+      const itemCostTotal = currentCost * (parseFloat(item.qty) || 0);
+
+      if (currentCost === 0) hasZeroCost = true;
+      if (!product) allCostsFound = false;
+
+      // Update item cost in the sale record
+      if (product && product.cost > 0) {
+        item.cost = product.cost;
+      }
+
+      newProfit += itemRevenue - itemCostTotal;
+    });
+
+    // Adjust for bill-level discount
+    newProfit -= (parseFloat(sale.billDisc) || 0);
+    // Add round-off to profit
+    newProfit += (parseFloat(sale.roundOff) || 0);
+
+    const oldProfit = sale.profit || 0;
+
+    if (hasZeroCost) zeroProfit++;
+
+    // Only update if profit was clearly wrong (> revenue which means cost was 0)
+    if (oldProfit >= sale.total * 0.99 && sale.total > 0) {
+      sale.profit = Math.round(newProfit * 100) / 100;
+      fixed++;
+    } else if (Math.abs(oldProfit - newProfit) > 1) {
+      // Also update if significantly different
+      sale.profit = Math.round(newProfit * 100) / 100;
+      fixed++;
+    } else {
+      skipped++;
+    }
+  });
+
+  autoSave();
+
+  const resultEl = document.getElementById('recalc-result');
+  if (resultEl) {
+    resultEl.innerHTML = `✓ Updated ${fixed} bills &nbsp;·&nbsp; ${skipped} already correct &nbsp;·&nbsp; ${zeroProfit} bills still have items with ₹0 cost`;
+  }
+  showToast(`Recalculated ${fixed} bills ✓`);
+}
+
   if (!confirm('This will delete ALL data — bills, purchases, products and vendors.\n\nYour shop name and settings will be kept.\n\nAre you sure?')) return;
   if (!confirm('Last confirmation — this cannot be undone. Continue?')) return;
   AppData.sales = [];
