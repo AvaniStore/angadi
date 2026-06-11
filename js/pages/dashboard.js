@@ -6,6 +6,15 @@ function renderDashboard() {
   const todaySales = AppData.sales.filter(s => s.date === today());
   const rev = todaySales.reduce((a, s) => a + (s.total || 0), 0);
   const prof = todaySales.reduce((a, s) => a + (s.profit || 0), 0);
+
+  // Monthly totals
+  const monthStart = new Date(); monthStart.setDate(1);
+  const monthFrom = monthStart.toISOString().slice(0, 10);
+  const monthSales = AppData.sales.filter(s => s.date >= monthFrom && s.date <= today());
+  const monthRev = monthSales.reduce((a, s) => a + (s.total || 0), 0);
+  const monthProf = monthSales.reduce((a, s) => a + (s.profit || 0), 0);
+  const monthName = new Date().toLocaleDateString('en-IN', { month: 'long' });
+
   const lowItems = AppData.products.filter(p => p.stock > 0 && p.stock <= p.lowAt);
   const outItems = AppData.products.filter(p => p.stock <= 0);
 
@@ -98,6 +107,9 @@ function renderDashboard() {
       <div class="metric-card"><div class="metric-label">Bills today</div><div class="metric-value">${todaySales.length}</div></div>
       <div class="metric-card"><div class="metric-label">💵 Cash today</div><div class="metric-value">${fmt(cashToday)}</div></div>
       <div class="metric-card"><div class="metric-label">📱 GPay today</div><div class="metric-value" style="color:#1d4ed8">${fmt(gpayToday)}</div></div>
+      <div class="metric-card" style="border-top:2px solid var(--accent)"><div class="metric-label">${monthName} revenue</div><div class="metric-value">${fmt(monthRev)}</div></div>
+      <div class="metric-card" style="border-top:2px solid var(--accent)"><div class="metric-label">${monthName} profit</div><div class="metric-value green">${fmt(monthProf)}</div></div>
+      <div class="metric-card" style="border-top:2px solid var(--accent)"><div class="metric-label">${monthName} bills</div><div class="metric-value">${monthSales.length}</div></div>
       <div class="metric-card"><div class="metric-label">Total products</div><div class="metric-value">${AppData.products.length}</div></div>
       <div class="metric-card"><div class="metric-label">Low / out of stock</div><div class="metric-value ${outItems.length ? 'red' : lowItems.length ? 'amber' : ''}">${lowItems.length + outItems.length}</div></div>
     </div>
