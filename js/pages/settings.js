@@ -286,6 +286,7 @@ function recalculateAllProfits() {
   showToast(`Recalculated ${fixed} bills ✓`);
 }
 
+function factoryReset() {
   if (!confirm('This will delete ALL data — bills, purchases, products and vendors.\n\nYour shop name and settings will be kept.\n\nAre you sure?')) return;
   if (!confirm('Last confirmation — this cannot be undone. Continue?')) return;
   AppData.sales = [];
