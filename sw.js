@@ -2,7 +2,7 @@
 //  SERVICE WORKER — offline caching for Avani app
 // ============================================================
 
-const CACHE_NAME = 'avani-v3';
+const CACHE_NAME = 'avani-v4';
 const ASSETS = [
   './',
   './index.html',
