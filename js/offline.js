@@ -22,10 +22,13 @@ function loadLocal() {
   return false;
 }
 
+let _supabaseConnected = false;
+
 function updateOnlineStatus(connected) {
+  if (connected !== undefined) _supabaseConnected = connected;
   const indicator = document.getElementById('online-indicator');
   if (!indicator) return;
-  if (connected) {
+  if (_supabaseConnected) {
     indicator.innerHTML = `<span style="color:var(--accent)">● Synced</span>`;
   } else if (navigator.onLine) {
     indicator.innerHTML = `<span style="color:var(--amber)">● Connecting...</span>`;
