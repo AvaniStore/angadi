@@ -113,11 +113,9 @@ function startRealtimeSync() {
   if (_realtimeChannel) window._sb.removeChannel(_realtimeChannel);
   _realtimeChannel = window._sb
     .channel('db-changes-' + currentUser.id)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, handleRealtimeChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, handleRealtimeChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, handleRealtimeChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, handleRealtimeChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: 'user_id=eq.' + currentUser.id }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sales', filter: 'user_id=eq.' + currentUser.id }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases', filter: 'user_id=eq.' + currentUser.id }, handleRealtimeChange)
     .subscribe(status => console.log('Realtime:', status));
 }
 
@@ -148,8 +146,12 @@ function handleRealtimeChange(payload) {
     else if (table==='purchases') AppData.purchases = AppData.purchases.filter(x => x.id !== id);
   }
   saveLocal();
-  renderCurrentPage();
-  updateSidebarShopInfo();
+  // Debounce re-render to avoid rapid updates
+  clearTimeout(window._realtimeRenderTimer);
+  window._realtimeRenderTimer = setTimeout(() => {
+    renderCurrentPage();
+    updateSidebarShopInfo();
+  }, 500);
   console.log('Realtime update from other device:', table, eventType);
 }
 
