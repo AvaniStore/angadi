@@ -404,6 +404,8 @@ function openStockAdjust(pid) {
             <option>Expired</option>
             <option>Damaged / broken</option>
             <option>Internal use / sample</option>
+            <option>Avani Bailore Dist. — sent</option>
+            <option>Avani Bailore Dist. — received</option>
             <option>Theft / shrinkage</option>
             <option>Manual correction</option>
             <option>Other</option>
