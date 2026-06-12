@@ -178,16 +178,34 @@ async function saveToGoogle() {
 
   try {
     await saveSettings();
-    // Upsert all records
+
     const tables = ['products','vendors','customers','sales','purchases','returns','adjustments'];
     const arrays = [AppData.products, AppData.vendors, AppData.customers, AppData.sales, AppData.purchases, AppData.returns, AppData.adjustments];
 
     for (let i = 0; i < tables.length; i++) {
-      if (arrays[i].length > 0) {
-        const rows = arrays[i].map(obj => toRow(tables[i], obj));
-        const { error } = await window._sb.from(tables[i]).upsert(rows, { onConflict: 'id' });
-        if (error) console.error(`Bulk save ${tables[i]} error:`, error);
+      const arr = arrays[i];
+      if (!arr || arr.length === 0) {
+        console.log(`${tables[i]}: skipped (empty)`);
+        continue;
       }
+
+      // Map rows and filter out any nulls
+      const rows = arr.map(obj => toRow(tables[i], obj)).filter(Boolean);
+
+      // Save in batches of 100 to avoid payload limits
+      const batchSize = 100;
+      let saved = 0;
+      for (let j = 0; j < rows.length; j += batchSize) {
+        const batch = rows.slice(j, j + batchSize);
+        const { error } = await window._sb.from(tables[i]).upsert(batch, { onConflict: 'id' });
+        if (error) {
+          console.error(`Save ${tables[i]} batch ${j} error:`, error.message, error.details);
+        } else {
+          saved += batch.length;
+        }
+      }
+      console.log(`${tables[i]}: saved ${saved}/${rows.length}`);
+      if (statusEl) statusEl.textContent = `Saving ${tables[i]}...`;
     }
 
     saveLocal();
