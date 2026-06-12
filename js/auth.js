@@ -146,6 +146,11 @@ function handleRealtimeChange(payload) {
     else if (table==='purchases') AppData.purchases = AppData.purchases.filter(x => x.id !== id);
   }
   saveLocal();
+  // Don't interrupt if user is actively creating a bill
+  if (typeof currentPage !== 'undefined' && currentPage === 'billing') {
+    console.log('Realtime update received but on billing page — skipping re-render');
+    return;
+  }
   // Debounce re-render to avoid rapid updates
   clearTimeout(window._realtimeRenderTimer);
   window._realtimeRenderTimer = setTimeout(() => {
