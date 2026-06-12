@@ -69,7 +69,6 @@ async function handleSignIn() {
 async function handleSignOut() {
   await window._sb.auth.signOut();
   currentUser = null;
-  // Clear in-memory data
   AppData.products = [];
   AppData.vendors = [];
   AppData.customers = [];
@@ -78,6 +77,16 @@ async function handleSignOut() {
   AppData.returns = [];
   AppData.adjustments = [];
   showToast('Signed out');
+  showAuthScreen();
+}
+
+function showAuthScreen() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const btn = document.getElementById('auth-btn');
+  if (btn) { btn.textContent = 'Sign in'; btn.disabled = false; }
+  const errEl = document.getElementById('auth-error');
+  if (errEl) errEl.textContent = '';
 }
 
 async function onSignedIn() {
