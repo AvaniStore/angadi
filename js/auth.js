@@ -90,6 +90,10 @@ function showAuthScreen() {
 }
 
 async function onSignedIn() {
+  // Reset button state first in case it was mid-signin
+  const btn = document.getElementById('auth-btn');
+  if (btn) { btn.textContent = 'Sign in'; btn.disabled = false; }
+
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
