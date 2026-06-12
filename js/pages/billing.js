@@ -412,15 +412,19 @@ function saveBill() {
   });
 
   autoSave('sales', sale);
-  // Explicitly save settings to persist bill number sequence
   if (typeof saveSettings === 'function') saveSettings().catch(console.error);
   showToast('Bill saved ✓');
+
+  // Reset everything FIRST
   currentPayment = 'Cash';
   editingBillId = null;
-  // Block realtime from wiping the invoice for 5 seconds
-  window._justSavedBill = Date.now();
-  // Reset bill items to one empty row
   billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
+  window._justSavedBill = Date.now();
+
+  // Re-render the billing form fresh (clears all inputs)
+  renderBilling();
+
+  // Then show invoice below the fresh form
   showInvoice(sale);
 }
 
