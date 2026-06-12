@@ -161,7 +161,7 @@ async function saveRecord(table, obj) {
   if (!window._recentlySavedIds) window._recentlySavedIds = new Set();
   if (obj.id) {
     window._recentlySavedIds.add(obj.id);
-    setTimeout(() => window._recentlySavedIds.delete(obj.id), 5000);
+    setTimeout(() => window._recentlySavedIds.delete(obj.id), 10000);
   }
   const row = toRow(table, obj);
   const { error } = await window._sb.from(table).upsert(row, { onConflict: 'id' });
