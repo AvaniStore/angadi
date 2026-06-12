@@ -466,6 +466,12 @@ function showInvoice(sale) {
 function closeInvoiceModal() {
   const modal = document.getElementById('invoice-modal');
   if (modal) modal.style.display = 'none';
+  // Reset all state
+  billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
+  currentPayment = 'Cash';
+  editingBillId = null;
+  // Always re-render to clear all form fields including customer name, phone etc.
+  renderBilling();
 }
 
 function printCurrentInvoice() {
