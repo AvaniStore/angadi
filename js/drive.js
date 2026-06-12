@@ -1,228 +1,254 @@
 // ============================================================
-//  DRIVE — Simple, proven working version
+//  SUPABASE — replaces drive.js for data sync
 // ============================================================
 
-const DRIVE_FILE_ID_KEY = 'avani_drive_file_id';
-const DRIVE_FILE_ID_KEY2 = 'avani_fid'; // backup key
-
-let driveFileId = localStorage.getItem(DRIVE_FILE_ID_KEY) || localStorage.getItem(DRIVE_FILE_ID_KEY2) || null;
-
-function saveDriveFileId(id) {
-  driveFileId = id;
-  if (id) {
-    localStorage.setItem(DRIVE_FILE_ID_KEY, id);
-    localStorage.setItem(DRIVE_FILE_ID_KEY2, id);
-    sessionStorage.setItem(DRIVE_FILE_ID_KEY, id);
-  } else {
-    localStorage.removeItem(DRIVE_FILE_ID_KEY);
-    localStorage.removeItem(DRIVE_FILE_ID_KEY2);
-    sessionStorage.removeItem(DRIVE_FILE_ID_KEY);
-  }
+// Convert AppData format to/from Supabase rows
+function toRow(table, obj) {
+  const uid = currentUser.id;
+  if (table === 'products') return {
+    id: obj.id, user_id: uid, name: obj.name, brand: obj.brand||'',
+    cat: obj.cat||'Grocery', weight: obj.weight||'', weight_other: obj.weightOther||'',
+    cost: obj.cost||0, mrp: obj.mrp||0, sell: obj.sell||0, gst: obj.gst||0,
+    stock: obj.stock||0, low_at: obj.lowAt||3, expiry: obj.expiry||''
+  };
+  if (table === 'sales') return {
+    id: obj.id, user_id: uid, date: obj.date, customer: obj.customer||'Walk-in',
+    phone: obj.phone||'', payment: obj.payment||'Cash', items: obj.items||[],
+    sub: obj.sub||0, item_disc: obj.itemDisc||0, bill_disc: obj.billDisc||0,
+    delivery: obj.delivery||0, gst: obj.gst||0, calc_total: obj.calcTotal||0,
+    round_off: obj.roundOff||0, total: obj.total||0, profit: obj.profit||0
+  };
+  if (table === 'vendors') return {
+    id: obj.id, user_id: uid, name: obj.name, phone: obj.phone||'',
+    city: obj.city||'', gstin: obj.gstin||'', email: obj.email||'',
+    brands: obj.brands||'', products: obj.products||'', payment: obj.payment||'Cash'
+  };
+  if (table === 'customers') return {
+    id: obj.id, user_id: uid, name: obj.name, phone: obj.phone||'',
+    last_bill: obj.lastBill||'', bill_count: obj.billCount||0, total_spent: obj.totalSpent||0
+  };
+  if (table === 'purchases') return {
+    id: obj.id, user_id: uid, po_number: obj.poNumber||'', date: obj.date,
+    vendor_id: obj.vendorId||'', vendor: obj.vendor||'', bill_no: obj.billNo||'',
+    payment: obj.payment||'Cash', items: obj.items||[], total: obj.total||0
+  };
+  if (table === 'returns') return {
+    id: obj.id, user_id: uid, sale_id: obj.saleId||'', date: obj.date,
+    items: obj.items||[], refund: obj.refund||0, reason: obj.reason||''
+  };
+  if (table === 'adjustments') return {
+    id: obj.id, user_id: uid, date: obj.date, product_id: obj.productId||'',
+    product: obj.product||'', qty: obj.qty||0, type: obj.type||'Write-off',
+    reason: obj.reason||'', loss: obj.loss||0
+  };
 }
 
-async function loadFromDrive() {
+function fromRow(table, row) {
+  if (table === 'products') return {
+    id: row.id, name: row.name, brand: row.brand, cat: row.cat,
+    weight: row.weight, weightOther: row.weight_other, cost: +row.cost,
+    mrp: +row.mrp, sell: +row.sell, gst: +row.gst, stock: +row.stock,
+    lowAt: +row.low_at, expiry: row.expiry
+  };
+  if (table === 'sales') return {
+    id: row.id, date: row.date, customer: row.customer, phone: row.phone,
+    payment: row.payment, items: row.items, sub: +row.sub,
+    itemDisc: +row.item_disc, billDisc: +row.bill_disc, delivery: +row.delivery,
+    gst: +row.gst, calcTotal: +row.calc_total, roundOff: +row.round_off,
+    total: +row.total, profit: +row.profit
+  };
+  if (table === 'vendors') return {
+    id: row.id, name: row.name, phone: row.phone, city: row.city,
+    gstin: row.gstin, email: row.email, brands: row.brands,
+    products: row.products, payment: row.payment
+  };
+  if (table === 'customers') return {
+    id: row.id, name: row.name, phone: row.phone, lastBill: row.last_bill,
+    billCount: row.bill_count, totalSpent: +row.total_spent
+  };
+  if (table === 'purchases') return {
+    id: row.id, poNumber: row.po_number, date: row.date, vendorId: row.vendor_id,
+    vendor: row.vendor, billNo: row.bill_no, payment: row.payment,
+    items: row.items, total: +row.total
+  };
+  if (table === 'returns') return {
+    id: row.id, saleId: row.sale_id, date: row.date,
+    items: row.items, refund: +row.refund, reason: row.reason
+  };
+  if (table === 'adjustments') return {
+    id: row.id, date: row.date, productId: row.product_id, product: row.product,
+    qty: +row.qty, type: row.type, reason: row.reason, loss: +row.loss
+  };
+}
+
+async function loadFromSupabase() {
   try {
-    // Try cached file ID first — fastest path
-    if (driveFileId) {
-      const content = await downloadDriveFile(driveFileId);
-      console.log('Cached ID download:', content ? content.length + ' bytes' : 'failed');
-      if (content) {
-        const ok = deserialize(content);
-        console.log('Deserialize:', ok, 'Sales:', AppData.sales.length);
-        showToast(`Data loaded ✓ (${AppData.sales.length} bills)`);
-        return;
-      }
-      console.log('Cached ID failed, searching Drive...');
+    const sb = window._sb;
+    const uid = currentUser.id;
+
+    const [
+      { data: settingsRows },
+      { data: products },
+      { data: vendors },
+      { data: customers },
+      { data: sales },
+      { data: purchases },
+      { data: returns_ },
+      { data: adjustments },
+    ] = await Promise.all([
+      sb.from('settings').select('*').eq('user_id', uid).limit(1),
+      sb.from('products').select('*').eq('user_id', uid),
+      sb.from('vendors').select('*').eq('user_id', uid),
+      sb.from('customers').select('*').eq('user_id', uid),
+      sb.from('sales').select('*').eq('user_id', uid).order('date', { ascending: true }),
+      sb.from('purchases').select('*').eq('user_id', uid).order('date', { ascending: true }),
+      sb.from('returns').select('*').eq('user_id', uid),
+      sb.from('adjustments').select('*').eq('user_id', uid),
+    ]);
+
+    // Apply settings
+    if (settingsRows && settingsRows.length > 0) {
+      const s = settingsRows[0];
+      AppData.settings = {
+        ...AppData.settings,
+        shopName: s.shop_name, address: s.address, city: s.city,
+        state: s.state, phone: s.phone, gstin: s.gstin, email: s.email,
+        lastBillNumber: s.last_bill_number, lastBillDate: s.last_bill_date,
+        lastBillSeq: s.last_bill_seq, lastPONumber: s.last_po_number,
+      };
     }
 
-    // Search Drive for the file
-    const resp = await gapi.client.drive.files.list({
-      q: `name='${CONFIG.DRIVE_FILE_NAME}' and trashed=false`,
-      fields: 'files(id, name, modifiedTime)',
-      spaces: 'drive',
-      orderBy: 'modifiedTime desc',
-    });
+    AppData.products = (products||[]).map(r => fromRow('products', r)).sort((a,b) => a.name.localeCompare(b.name));
+    AppData.vendors = (vendors||[]).map(r => fromRow('vendors', r));
+    AppData.customers = (customers||[]).map(r => fromRow('customers', r));
+    AppData.sales = (sales||[]).map(r => fromRow('sales', r));
+    AppData.purchases = (purchases||[]).map(r => fromRow('purchases', r));
+    AppData.returns = (returns_||[]).map(r => fromRow('returns', r));
+    AppData.adjustments = (adjustments||[]).map(r => fromRow('adjustments', r));
 
-    const files = resp.result.files;
-    if (files && files.length > 0) {
-      saveDriveFileId(files[0].id);
+    // Merge any offline bills
+    mergeOfflineData();
+    saveLocal();
+    showToast(`Data loaded ✓ (${AppData.sales.length} bills)`);
+    updateOnlineStatus(true);
 
-      // Delete duplicates
-      if (files.length > 1) {
-        for (let i = 1; i < files.length; i++) {
-          fetch(`https://www.googleapis.com/drive/v3/files/${files[i].id}`, {
-            method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` }
-          }).catch(() => {});
-        }
-      }
-
-      const content = await downloadDriveFile(driveFileId);
-      console.log('Downloaded content length:', content ? content.length : 'null');
-      if (content) {
-        const ok = deserialize(content);
-        console.log('Deserialize result:', ok, 'Sales:', AppData.sales.length);
-        showToast(`Data loaded ✓ (${AppData.sales.length} bills)`);
-      } else {
-        console.error('Download returned null');
-        showToast('Could not download data');
-      }
-    } else {
-      // No file on Drive — load local, but DON'T clear the stored file ID
-      const hasLocal = loadLocal();
-      showToast(hasLocal ? 'Loaded from local storage' : 'Starting fresh');
-    }
-  } catch (e) {
-    console.error('Drive load error', e);
-    // On error — load local but keep the stored file ID intact
+  } catch(e) {
+    console.error('Supabase load error:', e);
     const hasLocal = loadLocal();
     showToast(hasLocal ? 'Offline — loaded locally' : 'Could not load data');
+    updateOnlineStatus(false);
   }
 }
 
-async function downloadDriveFile(fileId) {
-  try {
-    const resp = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!resp.ok) return null;
-    return await resp.text();
-  } catch (e) {
-    return null;
-  }
+// Save a single record to Supabase
+async function saveRecord(table, obj) {
+  if (!currentUser) return;
+  const row = toRow(table, obj);
+  const { error } = await window._sb.from(table).upsert(row, { onConflict: 'id' });
+  if (error) console.error(`Save ${table} error:`, error);
 }
 
-async function refreshToken() {
-  return new Promise((resolve) => {
-    if (tokenClient) {
-      tokenClient.callback = async (tokenResponse) => {
-        if (!tokenResponse.error) {
-          accessToken = tokenResponse.access_token;
-          gapi.client.setToken({ access_token: accessToken });
-        }
-        resolve();
-      };
-      tokenClient.requestAccessToken({ prompt: '' });
-    } else {
-      resolve();
-    }
-  });
+// Delete a single record
+async function deleteRecord(table, id) {
+  if (!currentUser) return;
+  const { error } = await window._sb.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) console.error(`Delete ${table} error:`, error);
 }
 
+// Save settings
+async function saveSettings() {
+  if (!currentUser) return;
+  const s = AppData.settings;
+  const { error } = await window._sb.from('settings').upsert({
+    user_id: currentUser.id,
+    shop_name: s.shopName, address: s.address, city: s.city,
+    state: s.state, phone: s.phone, gstin: s.gstin||'', email: s.email||'',
+    last_bill_number: s.lastBillNumber||0, last_bill_date: s.lastBillDate||'',
+    last_bill_seq: s.lastBillSeq||0, last_po_number: s.lastPONumber||0,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+  if (error) console.error('Save settings error:', error);
+}
+
+// Full save to Supabase (used for import/bulk operations)
 async function saveToGoogle() {
-  if (!accessToken) { showToast('Please sign in first'); return; }
+  if (!currentUser) { showToast('Please sign in first'); return; }
   const statusEl = document.getElementById('save-status');
   if (statusEl) statusEl.textContent = 'Saving...';
 
   try {
-    const content = serialize();
+    await saveSettings();
+    // Upsert all records
+    const tables = ['products','vendors','customers','sales','purchases','returns','adjustments'];
+    const arrays = [AppData.products, AppData.vendors, AppData.customers, AppData.sales, AppData.purchases, AppData.returns, AppData.adjustments];
 
-    if (driveFileId) {
-      const resp = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
-        { method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: content }
-      );
-      if (resp.status === 401) {
-        showToast('Token expired — refreshing...');
-        await refreshToken();
-        await saveToGoogle();
-        return;
+    for (let i = 0; i < tables.length; i++) {
+      if (arrays[i].length > 0) {
+        const rows = arrays[i].map(obj => toRow(tables[i], obj));
+        const { error } = await window._sb.from(tables[i]).upsert(rows, { onConflict: 'id' });
+        if (error) console.error(`Bulk save ${tables[i]} error:`, error);
       }
-    } else {
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify({ name: CONFIG.DRIVE_FILE_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
-      form.append('file', new Blob([content], { type: 'application/json' }));
-      const resp = await fetch(
-        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
-        { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: form }
-      );
-      if (resp.status === 401) {
-        showToast('Token expired — refreshing...');
-        await refreshToken();
-        await saveToGoogle();
-        return;
-      }
-      const result = await resp.json();
-      saveDriveFileId(result.id);
     }
 
     saveLocal();
     if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
-    showToast('Saved to Google Drive ✓');
-  } catch (e) {
-    console.error('Drive save error', e);
+    showToast('Saved to Supabase ✓');
+    updateOnlineStatus(true);
+  } catch(e) {
+    console.error('Save error:', e);
     if (statusEl) statusEl.textContent = 'Save failed';
     saveLocal();
-    showToast('Save failed — data kept locally');
   }
 }
 
-async function refreshFromDrive() {
-  if (!accessToken) { showToast('Please sign in first'); return; }
+// Auto-save — save changed record immediately
+function autoSave(table, obj) {
+  saveLocal();
+  if (!currentUser) return;
+  if (table && obj) {
+    saveRecord(table, obj).catch(console.error);
+    if (table === 'sales' || table === 'products') saveSettings().catch(console.error);
+  }
   const statusEl = document.getElementById('save-status');
-  if (statusEl) statusEl.textContent = 'Refreshing...';
+  if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 2000); }
+}
 
-  // Force fresh download by bypassing cache temporarily
-  const savedId = driveFileId;
-  driveFileId = null;
+// Refresh from Supabase
+async function refreshFromDrive() {
+  if (!currentUser) { showToast('Please sign in first'); return; }
+  showToast('Refreshing...');
+  await loadFromSupabase();
+  renderCurrentPage();
+  updateSidebarShopInfo();
+}
 
+// Merge offline bills into Supabase on reconnect
+function mergeOfflineData() {
   try {
-    // Download directly using saved file ID
-    if (savedId) {
-      const content = await downloadDriveFile(savedId);
-      if (content) {
-        deserialize(content);
-        driveFileId = savedId;
-        saveDriveFileId(savedId);
-        saveLocal();
-        renderCurrentPage();
-        updateSidebarShopInfo();
-        if (statusEl) statusEl.textContent = '';
-        showToast(`Refreshed ✓ (${AppData.sales.length} bills)`);
-        return;
-      }
+    const localRaw = localStorage.getItem(LOCAL_KEY);
+    if (!localRaw) return;
+    const local = JSON.parse(localRaw);
+    if (!local || !local.sales) return;
+
+    const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
+    const offlineSales = (local.sales || []).filter(s => s.id && !onlineSaleIds.has(s.id));
+
+    if (offlineSales.length > 0) {
+      AppData.sales = [...AppData.sales, ...offlineSales].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      // Push offline sales to Supabase
+      offlineSales.forEach(s => saveRecord('sales', s).catch(console.error));
+      showToast(`Merged ${offlineSales.length} offline bill${offlineSales.length!==1?'s':''} ✓`);
     }
-    // Fallback to full search
-    await loadFromDrive();
-    if (!driveFileId && savedId) driveFileId = savedId;
-    saveLocal();
-    renderCurrentPage();
-    updateSidebarShopInfo();
-    if (statusEl) statusEl.textContent = '';
-    showToast(`Refreshed ✓`);
   } catch(e) {
-    driveFileId = savedId;
-    if (statusEl) statusEl.textContent = '';
-    showToast('Refresh failed');
+    console.error('mergeOfflineData error:', e);
   }
 }
 
 function showSyncDebug() {
-  const ls1 = localStorage.getItem(DRIVE_FILE_ID_KEY);
-  const ls2 = localStorage.getItem(DRIVE_FILE_ID_KEY2);
-  const ss = sessionStorage.getItem(DRIVE_FILE_ID_KEY);
-  const info = [
-    `Drive file ID (memory): ${driveFileId || 'none'}`,
-    `Drive file ID (localStorage): ${ls1 || 'none'}`,
-    `Drive file ID (backup): ${ls2 || 'none'}`,
-    `Local bills: ${AppData.sales.length}`,
-    `Last bill: ${AppData.sales.length ? AppData.sales[AppData.sales.length-1].id : 'none'}`,
-    `Access token: ${accessToken ? 'present' : 'missing'}`,
-  ];
-  alert('Sync status:\n\n' + info.join('\n'));
+  alert(`Sync status:\n\nUser: ${currentUser?.email || 'not signed in'}\nLocal bills: ${AppData.sales.length}\nProducts: ${AppData.products.length}\nLast bill: ${AppData.sales.length ? AppData.sales[AppData.sales.length-1].id : 'none'}`);
 }
 
 function showReconnectBtn(show) {
   const btn = document.getElementById('reconnect-btn');
   if (btn) btn.style.display = show ? '' : 'none';
-}
-
-function autoSave() {
-  saveLocal();
-  clearTimeout(window._autoSaveTimer);
-  if (accessToken) {
-    window._autoSaveTimer = setTimeout(() => saveToGoogle(), 2000);
-    const statusEl = document.getElementById('save-status');
-    if (statusEl) statusEl.textContent = 'Unsaved changes';
-  }
 }
