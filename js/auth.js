@@ -5,12 +5,19 @@
 let currentUser = null;
 
 async function initAuth() {
-  // Check if user is already signed in
+  // Check if user is already signed in — restore session immediately
   const { data: { session } } = await window._sb.auth.getSession();
   if (session) {
     currentUser = session.user;
+    // Hide auth screen right away so user doesn't see it
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
     await onSignedIn();
+    return;
   }
+
+  // No session — show auth screen
+  document.getElementById('auth-screen').style.display = 'flex';
 
   // Listen for auth changes
   window._sb.auth.onAuthStateChange(async (event, session) => {
@@ -36,6 +43,13 @@ async function handleSignIn() {
     return;
   }
 
+  // Make sure Supabase is loaded
+  if (!window._sb) {
+    errEl.textContent = 'App still loading, please wait...';
+    setTimeout(handleSignIn, 1000);
+    return;
+  }
+
   const btn = document.getElementById('auth-btn');
   btn.textContent = 'Signing in...';
   btn.disabled = true;
@@ -50,7 +64,6 @@ async function handleSignIn() {
     btn.textContent = 'Sign in';
     btn.disabled = false;
   }
-  // onAuthStateChange handles the rest
 }
 
 async function handleSignOut() {
