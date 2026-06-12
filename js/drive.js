@@ -149,11 +149,9 @@ async function loadFromSupabase() {
 // Save a single record to Supabase
 async function saveRecord(table, obj) {
   if (!currentUser) return;
-  _savingToSupabase = true;
   const row = toRow(table, obj);
   const { error } = await window._sb.from(table).upsert(row, { onConflict: 'id' });
   if (error) console.error(`Save ${table} error:`, error);
-  setTimeout(() => { _savingToSupabase = false; }, 2000);
 }
 
 // Delete a single record
@@ -185,7 +183,6 @@ async function saveToGoogle() {
   if (statusEl) statusEl.textContent = 'Saving...';
 
   try {
-    _savingToSupabase = true;
     await saveSettings();
 
     const tables = ['products','vendors','customers','sales','purchases','returns','adjustments'];
@@ -218,12 +215,10 @@ async function saveToGoogle() {
     }
 
     saveLocal();
-    setTimeout(() => { _savingToSupabase = false; }, 3000);
     if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
     showToast('Saved to Supabase ✓');
     updateOnlineStatus(true);
   } catch(e) {
-    _savingToSupabase = false;
     console.error('Save error:', e);
     if (statusEl) statusEl.textContent = 'Save failed';
     saveLocal();
