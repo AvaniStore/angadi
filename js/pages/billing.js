@@ -412,6 +412,8 @@ function saveBill() {
   });
 
   autoSave('sales', sale);
+  // Explicitly save settings to persist bill number sequence
+  if (typeof saveSettings === 'function') saveSettings().catch(console.error);
   showToast('Bill saved ✓');
   currentPayment = 'Cash';
   editingBillId = null;
