@@ -90,7 +90,6 @@ function showAuthScreen() {
 }
 
 async function onSignedIn() {
-  // Reset button state first in case it was mid-signin
   const btn = document.getElementById('auth-btn');
   if (btn) { btn.textContent = 'Sign in'; btn.disabled = false; }
 
@@ -104,7 +103,49 @@ async function onSignedIn() {
   await loadFromSupabase();
   renderCurrentPage();
   updateSidebarShopInfo();
-  updateOnlineStatus();
+  updateOnlineStatus(true);
+  startRealtimeSync();
+}
+
+let _realtimeChannel = null;
+
+function startRealtimeSync() {
+  if (_realtimeChannel) window._sb.removeChannel(_realtimeChannel);
+  _realtimeChannel = window._sb
+    .channel('db-changes-' + currentUser.id)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, handleRealtimeChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'purchases' }, handleRealtimeChange)
+    .subscribe(status => console.log('Realtime:', status));
+}
+
+function handleRealtimeChange(payload) {
+  const { table, eventType, new: n, old: o } = payload;
+  if (eventType === 'INSERT' || eventType === 'UPDATE') {
+    if (!n || n.user_id !== currentUser?.id) return;
+    const updated = fromRow(table, n);
+    const arr = table==='products' ? AppData.products : table==='sales' ? AppData.sales :
+                table==='vendors' ? AppData.vendors : table==='customers' ? AppData.customers :
+                table==='purchases' ? AppData.purchases : null;
+    if (!arr) return;
+    const idx = arr.findIndex(x => x.id === updated.id);
+    if (idx >= 0) arr[idx] = updated; else arr.push(updated);
+    if (table === 'products') AppData.products.sort((a,b) => a.name.localeCompare(b.name));
+  } else if (eventType === 'DELETE') {
+    const id = o?.id;
+    if (!id) return;
+    if (table==='products') AppData.products = AppData.products.filter(x => x.id !== id);
+    else if (table==='sales') AppData.sales = AppData.sales.filter(x => x.id !== id);
+    else if (table==='vendors') AppData.vendors = AppData.vendors.filter(x => x.id !== id);
+    else if (table==='customers') AppData.customers = AppData.customers.filter(x => x.id !== id);
+    else if (table==='purchases') AppData.purchases = AppData.purchases.filter(x => x.id !== id);
+  }
+  saveLocal();
+  renderCurrentPage();
+  updateSidebarShopInfo();
+  console.log('Realtime update:', table, eventType);
 }
 
 function showAuthScreen() {
