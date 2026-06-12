@@ -117,11 +117,19 @@ async function loadFromSupabase() {
       const s = settingsRows[0];
       AppData.settings = {
         ...AppData.settings,
-        shopName: s.shop_name, address: s.address, city: s.city,
-        state: s.state, phone: s.phone, gstin: s.gstin, email: s.email,
-        lastBillNumber: s.last_bill_number, lastBillDate: s.last_bill_date,
-        lastBillSeq: s.last_bill_seq, lastPONumber: s.last_po_number,
+        shopName: s.shop_name || AppData.settings.shopName,
+        address: s.address || AppData.settings.address,
+        city: s.city || AppData.settings.city,
+        state: s.state || AppData.settings.state,
+        phone: s.phone || AppData.settings.phone,
+        gstin: s.gstin || '',
+        email: s.email || '',
+        lastBillNumber: s.last_bill_number || 0,
+        lastBillDate: s.last_bill_date || '',
+        lastBillSeq: s.last_bill_seq || 0,
+        lastPONumber: s.last_po_number || 0,
       };
+      console.log('Settings loaded — lastBillDate:', s.last_bill_date, 'lastBillSeq:', s.last_bill_seq);
     }
 
     AppData.products = (products||[]).map(r => fromRow('products', r)).sort((a,b) => a.name.localeCompare(b.name));
