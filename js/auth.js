@@ -121,7 +121,12 @@ function startRealtimeSync() {
     .subscribe(status => console.log('Realtime:', status));
 }
 
+let _savingToSupabase = false;
+
 function handleRealtimeChange(payload) {
+  // Ignore changes triggered by our own saves
+  if (_savingToSupabase) return;
+
   const { table, eventType, new: n, old: o } = payload;
   if (eventType === 'INSERT' || eventType === 'UPDATE') {
     if (!n || n.user_id !== currentUser?.id) return;
@@ -145,7 +150,7 @@ function handleRealtimeChange(payload) {
   saveLocal();
   renderCurrentPage();
   updateSidebarShopInfo();
-  console.log('Realtime update:', table, eventType);
+  console.log('Realtime update from other device:', table, eventType);
 }
 
 function showAuthScreen() {
