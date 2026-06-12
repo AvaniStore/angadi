@@ -407,8 +407,10 @@ function saveBill() {
   autoSave('sales', sale);
   showToast('Bill saved ✓');
   currentPayment = 'Cash';
+  editingBillId = null;
+  // Reset bill items to one empty row
+  billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
   showInvoice(sale);
-  billItems = [];
 }
 
 function showInvoice(sale) {
