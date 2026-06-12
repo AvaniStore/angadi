@@ -72,7 +72,11 @@ function saveCustomerFromBill(name, phone) {
 }
 
 function renderBilling() {
-  if (!billItems.length) billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
+  // If no items or empty, start fresh
+  if (!billItems || billItems.length === 0) {
+    billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
+  }
+  currentPayment = currentPayment || 'Cash';
 
   document.getElementById('page-billing').innerHTML = `
     <div class="page-header">
@@ -345,6 +349,9 @@ function clearBill() {
   currentPayment = 'Cash';
   editingBillId = null;
   renderBilling();
+  // Clear invoice section after render
+  const inv = document.getElementById('invoice-section');
+  if (inv) inv.innerHTML = '';
 }
 
 function saveBill() {
@@ -437,7 +444,7 @@ function showInvoice(sale) {
         <span style="font-size:14px;font-weight:600;color:#1a2e1a">Invoice preview</span>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary btn-sm" onclick="printCurrentInvoice()">🖨 Print</button>
-          <button class="btn btn-sm" onclick="renderBilling()">New bill</button>
+          <button class="btn btn-sm" onclick="clearBill()">+ New bill</button>
         </div>
       </div>
       <div style="background:#fff;border:1px solid #d8e8d8;border-radius:8px;padding:20px;overflow:hidden">
