@@ -253,7 +253,7 @@ function saveProduct() {
   }
   AppData.products.sort((a, b) => a.name.localeCompare(b.name));
   editingProductId = null;
-  autoSave();
+  autoSave('products', product);
   // Remember active filter before re-rendering
   const prevCatFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
   const prevSearch = (document.getElementById('inv-search') || {}).value || '';
@@ -269,7 +269,9 @@ function deleteProduct(id) {
   const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
   AppData.products = AppData.products.filter(p => p.id !== id);
   showToast('Product deleted');
-  autoSave();
+  // Delete from Supabase
+  if (typeof deleteRecord === 'function') deleteRecord('products', id).catch(console.error);
+  saveLocal();
   renderInventory();
   if (catFilter) {
     const el = document.getElementById('inv-cat-filter');
@@ -362,8 +364,9 @@ function saveVegPrices() {
     if (costEl) v.cost = parseFloat(costEl.value) || 0;
     if (sellEl) v.sell = parseFloat(sellEl.value) || 0;
     if (stockEl) v.stock = parseFloat(stockEl.value) || 0;
+    // Save each updated product to Supabase
+    autoSave('products', v);
   });
-  autoSave();
   showToast('Prices and stock updated ✓');
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
@@ -476,7 +479,10 @@ function saveStockAdjust(pid) {
     qty: change, reason, loss,
   });
 
-  autoSave();
+  autoSave('products', p);
+  // Also save the adjustment record
+  const lastAdj = AppData.adjustments[AppData.adjustments.length-1];
+  if (lastAdj && typeof saveRecord === 'function') saveRecord('adjustments', lastAdj).catch(console.error);
   showToast(`Stock adjusted: ${p.name} → ${p.stock} units ✓`);
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
