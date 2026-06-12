@@ -260,7 +260,7 @@ async function refreshFromDrive() {
   updateSidebarShopInfo();
 }
 
-// Merge offline data into Supabase on reconnect
+// Merge offline data — Supabase is authoritative
 function mergeOfflineData() {
   try {
     const localRaw = localStorage.getItem(LOCAL_KEY);
@@ -268,10 +268,16 @@ function mergeOfflineData() {
     const local = JSON.parse(localRaw);
     if (!local) return;
 
-    // Merge offline bills
-    if (local.sales) {
+    // Only merge bills if local has MORE than Supabase (genuine offline bills)
+    // Never restore bills deleted from Supabase
+    if (local.sales && local.sales.length > AppData.sales.length) {
       const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
-      const offlineSales = (local.sales || []).filter(s => s.id && !onlineSaleIds.has(s.id));
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0,10);
+      const offlineSales = (local.sales || []).filter(s =>
+        s.id && !onlineSaleIds.has(s.id) && s.date >= yesterdayStr
+      );
       if (offlineSales.length > 0) {
         AppData.sales = [...AppData.sales, ...offlineSales].sort((a,b) => (a.date||'').localeCompare(b.date||''));
         offlineSales.forEach(s => saveRecord('sales', s).catch(console.error));
@@ -279,31 +285,21 @@ function mergeOfflineData() {
       }
     }
 
-    // Merge offline product changes (stock, prices)
-    // If local has products and Supabase has the same products,
-    // push any local products that differ from what Supabase returned
+    // Merge offline product changes
     if (local.products && AppData.products.length > 0) {
-      const supabaseProductMap = new Map(AppData.products.map(p => [p.id, p]));
-      const changedProducts = (local.products || []).filter(lp => {
-        const sp = supabaseProductMap.get(lp.id);
-        if (!sp) return false; // new product — handled by full save
-        // Check if stock or prices differ
-        return lp.stock !== sp.stock || lp.cost !== sp.cost || lp.sell !== sp.sell;
+      const supabaseMap = new Map(AppData.products.map(p => [p.id, p]));
+      const changed = (local.products || []).filter(lp => {
+        const sp = supabaseMap.get(lp.id);
+        return sp && (lp.stock !== sp.stock || lp.cost !== sp.cost || lp.sell !== sp.sell);
       });
-
-      if (changedProducts.length > 0) {
-        console.log(`Merging ${changedProducts.length} offline product changes`);
-        changedProducts.forEach(lp => {
-          // Update AppData with local version
+      if (changed.length > 0) {
+        changed.forEach(lp => {
           const idx = AppData.products.findIndex(p => p.id === lp.id);
           if (idx >= 0) AppData.products[idx] = lp;
-          // Push to Supabase
           saveRecord('products', lp).catch(console.error);
         });
-        showToast(`Synced ${changedProducts.length} offline stock/price change${changedProducts.length!==1?'s':''} ✓`);
       }
     }
-
   } catch(e) {
     console.error('mergeOfflineData error:', e);
   }
