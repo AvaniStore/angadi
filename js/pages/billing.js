@@ -345,13 +345,11 @@ function updateBillSummary() {
 }
 
 function clearBill() {
+  closeInvoiceModal();
   billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
   currentPayment = 'Cash';
   editingBillId = null;
   renderBilling();
-  // Clear invoice section after render
-  const inv = document.getElementById('invoice-section');
-  if (inv) inv.innerHTML = '';
 }
 
 function saveBill() {
@@ -412,19 +410,15 @@ function saveBill() {
   });
 
   autoSave('sales', sale);
-  if (typeof saveSettings === 'function') saveSettings().catch(console.error);
+  if (typeof saveSettingsToSupabase === 'function') saveSettingsToSupabase().catch(console.error);
   showToast('Bill saved ✓');
 
-  // Reset everything FIRST
+  // Reset state
   currentPayment = 'Cash';
   editingBillId = null;
   billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
-  window._justSavedBill = Date.now();
 
-  // Re-render the billing form fresh (clears all inputs)
-  renderBilling();
-
-  // Then show invoice below the fresh form
+  // Show invoice in modal overlay
   showInvoice(sale);
 }
 
@@ -446,22 +440,32 @@ function showInvoice(sale) {
 
   _currentInvoiceHtml = buildInvoiceHtml(sale, rows, s);
 
-  document.getElementById('invoice-section').innerHTML = `
-    <div style="background:#fff;border:1px solid #d8e8d8;border-radius:12px;padding:16px;margin-top:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <span style="font-size:14px;font-weight:600;color:#1a2e1a">✓ Bill saved — Invoice preview</span>
+  // Show invoice in a full-screen modal overlay — immune to page re-renders
+  let modal = document.getElementById('invoice-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'invoice-modal';
+    document.body.appendChild(modal);
+  }
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;max-width:700px;width:100%;margin:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <span style="font-size:15px;font-weight:700;color:#2d7a2d">✓ Bill saved!</span>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="clearBill()" style="font-size:14px">+ New bill</button>
+          <button class="btn btn-primary" onclick="closeInvoiceModal()" style="font-size:14px">+ New bill</button>
           <button class="btn btn-sm" onclick="printCurrentInvoice()">🖨 Print</button>
         </div>
       </div>
-      <div style="background:#fff;border:1px solid #d8e8d8;border-radius:8px;padding:20px;overflow:hidden">
-        ${_currentInvoiceHtml}
-      </div>
+      ${_currentInvoiceHtml}
     </div>
   `;
-  // Scroll to invoice so user can see it
-  document.getElementById('invoice-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  modal.onclick = function(e) { if (e.target === modal) closeInvoiceModal(); };
+}
+
+function closeInvoiceModal() {
+  const modal = document.getElementById('invoice-modal');
+  if (modal) modal.style.display = 'none';
 }
 
 function printCurrentInvoice() {
