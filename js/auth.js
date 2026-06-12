@@ -104,7 +104,7 @@ async function onSignedIn() {
   renderCurrentPage();
   updateSidebarShopInfo();
   updateOnlineStatus(true);
-  startRealtimeSync();
+  // Realtime sync disabled - use Refresh button to sync between devices
 }
 
 let _realtimeChannel = null;
