@@ -41,9 +41,16 @@ window.addEventListener('online', async () => {
   updateOnlineStatus(false);
   if (currentUser) {
     showToast('Back online — syncing...');
-    await loadFromSupabase();
-    renderCurrentPage();
-    updateSidebarShopInfo();
+    // Only reload if we have no data in memory
+    if (AppData.sales.length === 0) {
+      await loadFromSupabase();
+      renderCurrentPage();
+      updateSidebarShopInfo();
+    } else {
+      // Just push local offline changes to Supabase without reloading
+      mergeOfflineData();
+      updateOnlineStatus(true);
+    }
   }
 });
 
