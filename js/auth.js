@@ -119,11 +119,11 @@ function startRealtimeSync() {
     .subscribe(status => console.log('Realtime:', status));
 }
 
-let _savingToSupabase = false;
+// Use a session ID to identify our own changes
+const _sessionId = Math.random().toString(36).slice(2);
 
 function handleRealtimeChange(payload) {
-  // Ignore changes triggered by our own saves
-  if (_savingToSupabase) return;
+  // Skip - we handle our own updates directly in the UI
 
   const { table, eventType, new: n, old: o } = payload;
   if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -151,7 +151,8 @@ function handleRealtimeChange(payload) {
   window._realtimeRenderTimer = setTimeout(() => {
     renderCurrentPage();
     updateSidebarShopInfo();
-  }, 500);
+    showToast(`Updated from other device ✓`);
+  }, 1000);
   console.log('Realtime update from other device:', table, eventType);
 }
 
