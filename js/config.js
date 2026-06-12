@@ -1,18 +1,12 @@
 // ============================================================
-//  VYAPAAR CONFIG
-//  Fill in YOUR Google API credentials below after setup
+//  CONFIG — app settings
 // ============================================================
 
 const CONFIG = {
-  // Get this from Google Cloud Console → APIs → Credentials
-  GOOGLE_CLIENT_ID: '340747877593-gdkeaj568hh77jeuq08qtq7n3ulc1ap9.apps.googleusercontent.com',
+  // Supabase
+  SUPABASE_URL: 'https://snaxqjewhqeqladakspa.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNuYXhxamV3aHFlcWxhZGFrc3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjA3NzcsImV4cCI6MjA5NjY5Njc3N30.4ZxQRpmHqGhNBFB8jmvYHlB65UHjEG_VGEOTG4PnAm0',
 
-  // App version
-  VERSION: '1.0.0',
-
-  // File name saved in Google Drive
-  DRIVE_FILE_NAME: 'vyapaar-data.json',
-
-  // Low stock default threshold
-  DEFAULT_LOW_STOCK: 10,
+  // Shop defaults
+  SHOP_NAME: 'Avani — The Organic Store',
 };
