@@ -12,7 +12,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   // If offline and we have local data, load it without requiring sign-in
-  if (!isOnline()) {
+  if (!navigator.onLine) {
     const hasLocal = loadLocal();
     if (hasLocal) {
       document.getElementById('auth-screen').style.display = 'none';
