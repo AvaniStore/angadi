@@ -415,6 +415,8 @@ function saveBill() {
   showToast('Bill saved ✓');
   currentPayment = 'Cash';
   editingBillId = null;
+  // Block realtime from wiping the invoice for 5 seconds
+  window._justSavedBill = Date.now();
   // Reset bill items to one empty row
   billItems = [{ pid: '', qty: 1, price: 0, gst: 0, cost: 0, name: '', discount: 0 }];
   showInvoice(sale);
