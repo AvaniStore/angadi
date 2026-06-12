@@ -1,5 +1,5 @@
 // ============================================================
-//  OFFLINE — local storage backup
+//  OFFLINE — local storage backup + online status
 // ============================================================
 
 const LOCAL_KEY = 'avani_offline_data';
@@ -22,29 +22,29 @@ function loadLocal() {
   return false;
 }
 
-function isOnline() {
-  return navigator.onLine;
-}
-
-function updateOnlineStatus() {
+function updateOnlineStatus(connected) {
   const indicator = document.getElementById('online-indicator');
   if (!indicator) return;
-  if (isOnline()) {
-    indicator.innerHTML = `<span style="color:var(--accent)">● Online</span>`;
+  if (connected) {
+    indicator.innerHTML = `<span style="color:var(--accent)">● Synced</span>`;
+  } else if (navigator.onLine) {
+    indicator.innerHTML = `<span style="color:var(--amber)">● Connecting...</span>`;
   } else {
-    indicator.innerHTML = `<span style="color:var(--amber)">● Offline</span>`;
+    indicator.innerHTML = `<span style="color:var(--red)">● Offline</span>`;
   }
 }
 
-window.addEventListener('online', () => {
-  updateOnlineStatus();
-  showToast('Back online — syncing...');
-  if (typeof accessToken !== 'undefined' && accessToken) {
-    setTimeout(() => saveToGoogle(), 1500);
+window.addEventListener('online', async () => {
+  updateOnlineStatus(false);
+  if (currentUser) {
+    showToast('Back online — syncing...');
+    await loadFromSupabase();
+    renderCurrentPage();
+    updateSidebarShopInfo();
   }
 });
 
 window.addEventListener('offline', () => {
-  updateOnlineStatus();
-  showToast('Offline mode — changes saved locally');
+  updateOnlineStatus(false);
+  showToast('Offline — changes saved locally');
 });
