@@ -149,6 +149,12 @@ async function loadFromSupabase() {
 // Save a single record to Supabase
 async function saveRecord(table, obj) {
   if (!currentUser) return;
+  // Track this ID so realtime doesn't add it as a duplicate
+  if (!window._recentlySavedIds) window._recentlySavedIds = new Set();
+  if (obj.id) {
+    window._recentlySavedIds.add(obj.id);
+    setTimeout(() => window._recentlySavedIds.delete(obj.id), 5000);
+  }
   const row = toRow(table, obj);
   const { error } = await window._sb.from(table).upsert(row, { onConflict: 'id' });
   if (error) console.error(`Save ${table} error:`, error);
