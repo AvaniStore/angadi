@@ -440,11 +440,11 @@ function showInvoice(sale) {
 
   document.getElementById('invoice-section').innerHTML = `
     <div style="background:#fff;border:1px solid #d8e8d8;border-radius:12px;padding:16px;margin-top:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <span style="font-size:14px;font-weight:600;color:#1a2e1a">Invoice preview</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <span style="font-size:14px;font-weight:600;color:#1a2e1a">✓ Bill saved — Invoice preview</span>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="printCurrentInvoice()">🖨 Print</button>
-          <button class="btn btn-sm" onclick="clearBill()">+ New bill</button>
+          <button class="btn btn-primary" onclick="clearBill()" style="font-size:14px">+ New bill</button>
+          <button class="btn btn-sm" onclick="printCurrentInvoice()">🖨 Print</button>
         </div>
       </div>
       <div style="background:#fff;border:1px solid #d8e8d8;border-radius:8px;padding:20px;overflow:hidden">
@@ -452,6 +452,8 @@ function showInvoice(sale) {
       </div>
     </div>
   `;
+  // Scroll to invoice so user can see it
+  document.getElementById('invoice-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function printCurrentInvoice() {
