@@ -134,7 +134,18 @@ function handleRealtimeChange(payload) {
                 table==='purchases' ? AppData.purchases : null;
     if (!arr) return;
     const idx = arr.findIndex(x => x.id === updated.id);
-    if (idx >= 0) arr[idx] = updated; else arr.push(updated);
+    if (idx >= 0) {
+      // Only update if data actually changed (avoid re-render from own saves)
+      if (JSON.stringify(arr[idx]) === JSON.stringify(updated)) return;
+      arr[idx] = updated;
+    } else {
+      // Only add if not recently saved by this device
+      if (window._recentlySavedIds && window._recentlySavedIds.has(updated.id)) {
+        window._recentlySavedIds.delete(updated.id);
+        return;
+      }
+      arr.push(updated);
+    }
     if (table === 'products') AppData.products.sort((a,b) => a.name.localeCompare(b.name));
   } else if (eventType === 'DELETE') {
     const id = o?.id;
