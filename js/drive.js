@@ -176,7 +176,7 @@ async function deleteRecord(table, id) {
 }
 
 // Save settings
-async function saveSettings() {
+async function saveSettingsToSupabase() {
   if (!currentUser) return;
   const s = AppData.settings;
   const { error } = await window._sb.from('settings').upsert({
@@ -197,7 +197,7 @@ async function saveToGoogle() {
   if (statusEl) statusEl.textContent = 'Saving...';
 
   try {
-    await saveSettings();
+    await saveSettingsToSupabase();
 
     const tables = ['products','vendors','customers','sales','purchases','returns','adjustments'];
     const arrays = [AppData.products, AppData.vendors, AppData.customers, AppData.sales, AppData.purchases, AppData.returns, AppData.adjustments];
@@ -245,7 +245,7 @@ function autoSave(table, obj) {
   if (!currentUser) return;
   if (table && obj) {
     saveRecord(table, obj).catch(console.error);
-    if (table === 'sales' || table === 'products') saveSettings().catch(console.error);
+    if (table === 'sales' || table === 'products') saveSettingsToSupabase().catch(console.error);
   }
   const statusEl = document.getElementById('save-status');
   if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 2000); }
@@ -337,7 +337,7 @@ function autoSave(table, obj) {
         if (statusEl) statusEl.textContent = 'Save failed';
       });
     // Also save settings if bill counter changed
-    if (table === 'sales' || table === 'products') saveSettings().catch(console.error);
+    if (table === 'sales' || table === 'products') saveSettingsToSupabase().catch(console.error);
   } else {
     // Debounced full save for bulk changes
     clearTimeout(window._autoSaveTimer);
