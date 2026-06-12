@@ -157,9 +157,14 @@ function handleRealtimeChange(payload) {
     else if (table==='purchases') AppData.purchases = AppData.purchases.filter(x => x.id !== id);
   }
   saveLocal();
-  // Don't interrupt if user is actively creating a bill
+  // Never interrupt the billing page
   if (typeof currentPage !== 'undefined' && currentPage === 'billing') {
-    console.log('Realtime update received but on billing page — skipping re-render');
+    console.log('Realtime: skipping re-render on billing page');
+    return;
+  }
+  // Skip if a bill was just saved in the last 5 seconds
+  if (window._justSavedBill && (Date.now() - window._justSavedBill) < 5000) {
+    console.log('Realtime: skipping re-render - just saved a bill');
     return;
   }
   // Debounce re-render to avoid rapid updates
