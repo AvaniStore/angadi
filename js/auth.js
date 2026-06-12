@@ -135,12 +135,13 @@ function handleRealtimeChange(payload) {
     if (!arr) return;
     const idx = arr.findIndex(x => x.id === updated.id);
     if (idx >= 0) {
-      // Only update if data actually changed (avoid re-render from own saves)
+      // Already exists - skip if identical to avoid loop
       if (JSON.stringify(arr[idx]) === JSON.stringify(updated)) return;
       arr[idx] = updated;
     } else {
-      // Only add if not recently saved by this device
+      // New record - skip if we just saved this (prevents duplicates)
       if (window._recentlySavedIds && window._recentlySavedIds.has(updated.id)) {
+        console.log('Realtime: skipping own INSERT for', updated.id);
         window._recentlySavedIds.delete(updated.id);
         return;
       }
