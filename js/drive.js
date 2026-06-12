@@ -153,7 +153,7 @@ async function saveRecord(table, obj) {
   const row = toRow(table, obj);
   const { error } = await window._sb.from(table).upsert(row, { onConflict: 'id' });
   if (error) console.error(`Save ${table} error:`, error);
-  setTimeout(() => { _savingToSupabase = false; }, 500);
+  setTimeout(() => { _savingToSupabase = false; }, 2000);
 }
 
 // Delete a single record
@@ -218,7 +218,7 @@ async function saveToGoogle() {
     }
 
     saveLocal();
-    _savingToSupabase = false;
+    setTimeout(() => { _savingToSupabase = false; }, 3000);
     if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 3000); }
     showToast('Saved to Supabase ✓');
     updateOnlineStatus(true);
