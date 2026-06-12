@@ -36,18 +36,6 @@ function renderSettings() {
 
     <div class="card">
       <div class="settings-section">
-        <h3>Fix historical profit figures</h3>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Bills created before cost prices were set show 100% profit. Recalculate all bills using current inventory cost prices.</p>
-        <p style="font-size:12px;color:var(--amber);margin-bottom:14px">⚠ This uses current cost prices, not the cost at time of sale. Results are approximate but much more accurate than 100%.</p>
-        <div id="recalc-result" style="font-size:13px;color:var(--accent-dark);margin-bottom:10px"></div>
-        <div class="form-actions">
-          <button class="btn btn-primary" onclick="recalculateAllProfits()">🔄 Recalculate all bill profits</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="settings-section">
         <h3>Data management</h3>
         <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Your data is auto-saved to Google Drive. You can also export a backup.</p>
         <div class="form-actions">
