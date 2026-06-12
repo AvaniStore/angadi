@@ -85,16 +85,17 @@ async function loadFromSupabase() {
   try {
     const sb = window._sb;
     const uid = currentUser.id;
+    console.log('Loading from Supabase, user:', uid);
 
     const [
-      { data: settingsRows },
-      { data: products },
-      { data: vendors },
-      { data: customers },
-      { data: sales },
-      { data: purchases },
-      { data: returns_ },
-      { data: adjustments },
+      { data: settingsRows, error: e0 },
+      { data: products, error: e1 },
+      { data: vendors, error: e2 },
+      { data: customers, error: e3 },
+      { data: sales, error: e4 },
+      { data: purchases, error: e5 },
+      { data: returns_, error: e6 },
+      { data: adjustments, error: e7 },
     ] = await Promise.all([
       sb.from('settings').select('*').eq('user_id', uid).limit(1),
       sb.from('products').select('*').eq('user_id', uid),
@@ -105,6 +106,11 @@ async function loadFromSupabase() {
       sb.from('returns').select('*').eq('user_id', uid),
       sb.from('adjustments').select('*').eq('user_id', uid),
     ]);
+
+    // Log any errors
+    [e0,e1,e2,e3,e4,e5,e6,e7].forEach((e,i) => { if(e) console.error(`Load error table ${i}:`, e.message); });
+
+    console.log(`Loaded: products=${products?.length}, vendors=${vendors?.length}, sales=${sales?.length}, customers=${customers?.length}`);
 
     // Apply settings
     if (settingsRows && settingsRows.length > 0) {
@@ -129,7 +135,7 @@ async function loadFromSupabase() {
     // Merge any offline bills
     mergeOfflineData();
     saveLocal();
-    showToast(`Data loaded ✓ (${AppData.sales.length} bills)`);
+    showToast(`Data loaded ✓ (${AppData.products.length} products, ${AppData.sales.length} bills)`);
     updateOnlineStatus(true);
 
   } catch(e) {
@@ -269,4 +275,32 @@ function showSyncDebug() {
 function showReconnectBtn(show) {
   const btn = document.getElementById('reconnect-btn');
   if (btn) btn.style.display = show ? '' : 'none';
+}
+
+// Auto-save — called after every data change
+// Pass table + object for instant single-record save, or no args for local-only
+function autoSave(table, obj) {
+  saveLocal();
+  if (!currentUser || !navigator.onLine) return;
+
+  const statusEl = document.getElementById('save-status');
+
+  if (table && obj) {
+    // Save single record immediately
+    saveRecord(table, obj)
+      .then(() => {
+        if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 2000); }
+      })
+      .catch(e => {
+        console.error('autoSave error:', e);
+        if (statusEl) statusEl.textContent = 'Save failed';
+      });
+    // Also save settings if bill counter changed
+    if (table === 'sales' || table === 'products') saveSettings().catch(console.error);
+  } else {
+    // Debounced full save for bulk changes
+    clearTimeout(window._autoSaveTimer);
+    if (statusEl) statusEl.textContent = 'Saving...';
+    window._autoSaveTimer = setTimeout(() => saveToGoogle(), 2000);
+  }
 }
