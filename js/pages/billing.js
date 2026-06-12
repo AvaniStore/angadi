@@ -404,7 +404,7 @@ function saveBill() {
     if (p) p.stock -= it.qty;
   });
 
-  autoSave();
+  autoSave('sales', sale);
   showToast('Bill saved ✓');
   currentPayment = 'Cash';
   showInvoice(sale);
