@@ -9,7 +9,8 @@ function toRow(table, obj) {
     id: obj.id, user_id: uid, name: obj.name, brand: obj.brand||'',
     cat: obj.cat||'Grocery', weight: obj.weight||'', weight_other: obj.weightOther||'',
     cost: obj.cost||0, mrp: obj.mrp||0, sell: obj.sell||0, gst: obj.gst||0,
-    stock: obj.stock||0, low_at: obj.lowAt||3, expiry: obj.expiry||''
+    stock: obj.stock||0, low_at: obj.lowAt||3, expiry: obj.expiry||'',
+    updated_at: obj.updatedAt || new Date().toISOString()
   };
   if (table === 'sales') return {
     id: obj.id, user_id: uid, date: obj.date, customer: obj.customer||'Walk-in',
@@ -48,7 +49,7 @@ function fromRow(table, row) {
     id: row.id, name: row.name, brand: row.brand, cat: row.cat,
     weight: row.weight, weightOther: row.weight_other, cost: +row.cost,
     mrp: +row.mrp, sell: +row.sell, gst: +row.gst, stock: +row.stock,
-    lowAt: +row.low_at, expiry: row.expiry
+    lowAt: +row.low_at, expiry: row.expiry, updatedAt: row.updated_at || ''
   };
   if (table === 'sales') return {
     id: row.id, date: row.date, customer: row.customer, phone: row.phone,
@@ -318,26 +319,35 @@ function mergeOfflineData() {
       }
     }
 
-    // Merge offline product changes — only if we were actually offline recently
-    // Don't override Supabase stock with stale local values during normal refresh
-    const wasOffline = localStorage.getItem('avani_was_offline') === 'true';
-    if (wasOffline) {
+    // Always merge offline product/vendor changes — timestamp decides which wins
+    {
       try {
         const offlineProducts = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
         Object.values(offlineProducts).forEach(lp => {
           if (isDeleted('products', lp.id)) return;
           const sp = AppData.products.find(p => p.id === lp.id);
-          if (sp && (lp.stock !== sp.stock || lp.cost !== sp.cost || lp.sell !== sp.sell)) {
+          if (!sp) return;
+          const localTime = lp.updatedAt ? new Date(lp.updatedAt) : new Date(0);
+          const supabaseTime = sp.updatedAt ? new Date(sp.updatedAt) : new Date(0);
+          if (localTime > supabaseTime) {
+            console.log('Merging offline product:', lp.name, 'local:', lp.updatedAt, 'supabase:', sp.updatedAt);
             const idx = AppData.products.findIndex(p => p.id === lp.id);
             if (idx >= 0) AppData.products[idx] = lp;
+            const idx2 = AppData.products.findIndex(p => p.id === lp.id);
+            if (idx2 >= 0) AppData.products[idx2] = lp;
             saveRecord('products', lp).then(() => {
               const ex = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
               delete ex[lp.id];
               localStorage.setItem('avani_offline_products', JSON.stringify(ex));
             }).catch(console.error);
+          } else {
+            // Supabase is newer - discard stale local
+            const ex = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
+            delete ex[lp.id];
+            localStorage.setItem('avani_offline_products', JSON.stringify(ex));
           }
         });
-      } catch(e) {}
+      } catch(e) { console.error('product merge:', e); }
 
       // Merge offline vendor changes
       try {
@@ -354,9 +364,6 @@ function mergeOfflineData() {
         });
       } catch(e) {}
 
-      localStorage.removeItem('avani_was_offline');
-      localStorage.removeItem('avani_offline_products');
-      localStorage.removeItem('avani_offline_vendors');
     }
 
   } catch(e) {
@@ -389,7 +396,7 @@ function autoSave(table, obj) {
   if (table === 'products' && obj) {
     try {
       const existing = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
-      existing[obj.id] = obj; // keyed by id, so latest update wins
+      existing[obj.id] = { ...obj, updatedAt: new Date().toISOString() };
       localStorage.setItem('avani_offline_products', JSON.stringify(existing));
     } catch(e) {}
   }
