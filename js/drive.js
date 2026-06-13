@@ -158,7 +158,6 @@ async function loadFromSupabase() {
 // Save a single record to Supabase
 async function saveRecord(table, obj) {
   if (!currentUser) return;
-  // Track this ID so realtime doesn't add it as a duplicate
   if (!window._recentlySavedIds) window._recentlySavedIds = new Set();
   if (obj.id) {
     window._recentlySavedIds.add(obj.id);
@@ -166,7 +165,17 @@ async function saveRecord(table, obj) {
   }
   const row = toRow(table, obj);
   const { error } = await window._sb.from(table).upsert(row, { onConflict: 'id' });
-  if (error) console.error(`Save ${table} error:`, error);
+  if (error) {
+    console.error(`Save ${table} error:`, error);
+  } else if (table === 'sales' && obj.id) {
+    // Remove from protected offline bills once confirmed saved to Supabase
+    try {
+      const offlineKey = 'avani_offline_bills';
+      const existing = JSON.parse(localStorage.getItem(offlineKey) || '[]');
+      const updated = existing.filter(s => s.id !== obj.id);
+      localStorage.setItem(offlineKey, JSON.stringify(updated));
+    } catch(e) {}
+  }
 }
 
 // Delete a single record
@@ -264,13 +273,27 @@ async function refreshFromDrive() {
 // Merge offline data — Supabase is authoritative
 function mergeOfflineData() {
   try {
+    // Check protected offline bills first (bills saved while offline)
+    const offlineKey = 'avani_offline_bills';
+    const protectedBills = JSON.parse(localStorage.getItem(offlineKey) || '[]');
+    if (protectedBills.length > 0) {
+      const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
+      const toMerge = protectedBills.filter(s => s.id && !onlineSaleIds.has(s.id));
+      if (toMerge.length > 0) {
+        AppData.sales = [...AppData.sales, ...toMerge].sort((a,b) => (a.date||'').localeCompare(b.date||''));
+        toMerge.forEach(s => saveRecord('sales', s).catch(console.error));
+        showToast(`Merged ${toMerge.length} offline bill${toMerge.length!==1?'s':''} ✓`);
+      }
+      // Clear the protected key once merged
+      localStorage.removeItem(offlineKey);
+    }
+
+    // Also check main localStorage for offline bills (only if local has MORE than Supabase)
     const localRaw = localStorage.getItem(LOCAL_KEY);
     if (!localRaw) return;
     const local = JSON.parse(localRaw);
     if (!local) return;
 
-    // Only merge bills if local has MORE than Supabase (genuine offline bills)
-    // Never restore bills deleted from Supabase
     if (local.sales && local.sales.length > AppData.sales.length) {
       const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
       const yesterday = new Date();
@@ -316,9 +339,19 @@ function showReconnectBtn(show) {
 }
 
 // Auto-save — called after every data change
-// Pass table + object for instant single-record save, or no args for local-only
 function autoSave(table, obj) {
   saveLocal();
+  // Also save offline bills to a separate protected key
+  if (table === 'sales' && obj) {
+    try {
+      const offlineKey = 'avani_offline_bills';
+      const existing = JSON.parse(localStorage.getItem(offlineKey) || '[]');
+      if (!existing.find(s => s.id === obj.id)) {
+        existing.push(obj);
+        localStorage.setItem(offlineKey, JSON.stringify(existing));
+      }
+    } catch(e) {}
+  }
   if (!currentUser || !navigator.onLine) return;
 
   const statusEl = document.getElementById('save-status');
