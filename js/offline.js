@@ -56,5 +56,6 @@ window.addEventListener('online', async () => {
 
 window.addEventListener('offline', () => {
   updateOnlineStatus(false);
+  localStorage.setItem('avani_was_offline', 'true');
   showToast('Offline — changes saved locally');
 });
