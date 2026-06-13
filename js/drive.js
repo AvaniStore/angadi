@@ -181,6 +181,13 @@ async function saveRecord(table, obj) {
 // Delete a single record
 async function deleteRecord(table, id) {
   if (!currentUser) return;
+  // Track this deletion so offline merges don't restore it
+  try {
+    const deleted = JSON.parse(localStorage.getItem('avani_deleted_ids') || '{}');
+    if (!deleted[table]) deleted[table] = [];
+    if (!deleted[table].includes(id)) deleted[table].push(id);
+    localStorage.setItem('avani_deleted_ids', JSON.stringify(deleted));
+  } catch(e) {}
   const { error } = await window._sb.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
   if (error) console.error(`Delete ${table} error:`, error);
 }
@@ -273,22 +280,24 @@ async function refreshFromDrive() {
 // Merge offline data — Supabase is authoritative
 function mergeOfflineData() {
   try {
-    // Check protected offline bills first (bills saved while offline)
-    const offlineKey = 'avani_offline_bills';
-    const protectedBills = JSON.parse(localStorage.getItem(offlineKey) || '[]');
+    // Load deleted IDs to avoid restoring deleted records
+    const deleted = JSON.parse(localStorage.getItem('avani_deleted_ids') || '{}');
+    const isDeleted = (table, id) => (deleted[table] || []).includes(id);
+
+    // Merge offline bills from protected key
+    const protectedBills = JSON.parse(localStorage.getItem('avani_offline_bills') || '[]');
     if (protectedBills.length > 0) {
       const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
-      const toMerge = protectedBills.filter(s => s.id && !onlineSaleIds.has(s.id));
+      const toMerge = protectedBills.filter(s => s.id && !onlineSaleIds.has(s.id) && !isDeleted('sales', s.id));
       if (toMerge.length > 0) {
         AppData.sales = [...AppData.sales, ...toMerge].sort((a,b) => (a.date||'').localeCompare(b.date||''));
         toMerge.forEach(s => saveRecord('sales', s).catch(console.error));
         showToast(`Merged ${toMerge.length} offline bill${toMerge.length!==1?'s':''} ✓`);
       }
-      // Clear the protected key once merged
-      localStorage.removeItem(offlineKey);
+      localStorage.removeItem('avani_offline_bills');
     }
 
-    // Also check main localStorage for offline bills (only if local has MORE than Supabase)
+    // Check main localStorage for offline bills
     const localRaw = localStorage.getItem(LOCAL_KEY);
     if (!localRaw) return;
     const local = JSON.parse(localRaw);
@@ -300,7 +309,7 @@ function mergeOfflineData() {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().slice(0,10);
       const offlineSales = (local.sales || []).filter(s =>
-        s.id && !onlineSaleIds.has(s.id) && s.date >= yesterdayStr
+        s.id && !onlineSaleIds.has(s.id) && s.date >= yesterdayStr && !isDeleted('sales', s.id)
       );
       if (offlineSales.length > 0) {
         AppData.sales = [...AppData.sales, ...offlineSales].sort((a,b) => (a.date||'').localeCompare(b.date||''));
@@ -309,21 +318,47 @@ function mergeOfflineData() {
       }
     }
 
-    // Merge offline product changes
-    if (local.products && AppData.products.length > 0) {
-      const supabaseMap = new Map(AppData.products.map(p => [p.id, p]));
-      const changed = (local.products || []).filter(lp => {
-        const sp = supabaseMap.get(lp.id);
-        return sp && (lp.stock !== sp.stock || lp.cost !== sp.cost || lp.sell !== sp.sell);
-      });
-      if (changed.length > 0) {
-        changed.forEach(lp => {
-          const idx = AppData.products.findIndex(p => p.id === lp.id);
-          if (idx >= 0) AppData.products[idx] = lp;
-          saveRecord('products', lp).catch(console.error);
+    // Merge offline product changes — only if we were actually offline recently
+    // Don't override Supabase stock with stale local values during normal refresh
+    const wasOffline = localStorage.getItem('avani_was_offline') === 'true';
+    if (wasOffline) {
+      try {
+        const offlineProducts = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
+        Object.values(offlineProducts).forEach(lp => {
+          if (isDeleted('products', lp.id)) return;
+          const sp = AppData.products.find(p => p.id === lp.id);
+          if (sp && (lp.stock !== sp.stock || lp.cost !== sp.cost || lp.sell !== sp.sell)) {
+            const idx = AppData.products.findIndex(p => p.id === lp.id);
+            if (idx >= 0) AppData.products[idx] = lp;
+            saveRecord('products', lp).then(() => {
+              const ex = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
+              delete ex[lp.id];
+              localStorage.setItem('avani_offline_products', JSON.stringify(ex));
+            }).catch(console.error);
+          }
         });
-      }
+      } catch(e) {}
+
+      // Merge offline vendor changes
+      try {
+        const offlineVendors = JSON.parse(localStorage.getItem('avani_offline_vendors') || '{}');
+        Object.values(offlineVendors).forEach(lv => {
+          if (isDeleted('vendors', lv.id)) return;
+          const idx = AppData.vendors.findIndex(v => v.id === lv.id);
+          if (idx >= 0) AppData.vendors[idx] = lv; else AppData.vendors.push(lv);
+          saveRecord('vendors', lv).then(() => {
+            const ex = JSON.parse(localStorage.getItem('avani_offline_vendors') || '{}');
+            delete ex[lv.id];
+            localStorage.setItem('avani_offline_vendors', JSON.stringify(ex));
+          }).catch(console.error);
+        });
+      } catch(e) {}
+
+      localStorage.removeItem('avani_was_offline');
+      localStorage.removeItem('avani_offline_products');
+      localStorage.removeItem('avani_offline_vendors');
     }
+
   } catch(e) {
     console.error('mergeOfflineData error:', e);
   }
@@ -341,15 +376,28 @@ function showReconnectBtn(show) {
 // Auto-save — called after every data change
 function autoSave(table, obj) {
   saveLocal();
-  // Also save offline bills to a separate protected key
+  // Also save offline bills/products/vendors to a separate protected key
   if (table === 'sales' && obj) {
     try {
-      const offlineKey = 'avani_offline_bills';
-      const existing = JSON.parse(localStorage.getItem(offlineKey) || '[]');
+      const existing = JSON.parse(localStorage.getItem('avani_offline_bills') || '[]');
       if (!existing.find(s => s.id === obj.id)) {
         existing.push(obj);
-        localStorage.setItem(offlineKey, JSON.stringify(existing));
+        localStorage.setItem('avani_offline_bills', JSON.stringify(existing));
       }
+    } catch(e) {}
+  }
+  if (table === 'products' && obj) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
+      existing[obj.id] = obj; // keyed by id, so latest update wins
+      localStorage.setItem('avani_offline_products', JSON.stringify(existing));
+    } catch(e) {}
+  }
+  if (table === 'vendors' && obj) {
+    try {
+      const existing = JSON.parse(localStorage.getItem('avani_offline_vendors') || '{}');
+      existing[obj.id] = obj;
+      localStorage.setItem('avani_offline_vendors', JSON.stringify(existing));
     } catch(e) {}
   }
   if (!currentUser || !navigator.onLine) return;
