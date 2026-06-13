@@ -140,8 +140,9 @@ async function loadFromSupabase() {
     AppData.returns = (returns_||[]).map(r => fromRow('returns', r));
     AppData.adjustments = (adjustments||[]).map(r => fromRow('adjustments', r));
 
-    // Merge any offline bills
+    // Supabase is authoritative — merge only genuine offline bills then overwrite local cache
     mergeOfflineData();
+    // Now save the authoritative Supabase data to localStorage (overwrites any stale local data)
     saveLocal();
     showToast(`Data loaded ✓ (${AppData.products.length} products, ${AppData.sales.length} bills)`);
     updateOnlineStatus(true);
