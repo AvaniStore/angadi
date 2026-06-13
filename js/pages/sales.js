@@ -357,7 +357,9 @@ function deleteSale(id) {
   }
   AppData.sales = AppData.sales.filter(s => s.id !== id);
   AppData.returns = AppData.returns.filter(r => r.saleId !== id);
-  autoSave();
+  // Delete from Supabase AND update localStorage immediately
+  if (typeof deleteRecord === 'function') deleteRecord('sales', id).catch(console.error);
+  saveLocal();
   showToast('Bill deleted ✓');
   renderSales();
 }
