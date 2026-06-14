@@ -352,14 +352,16 @@ function deleteSale(id) {
   if (confirm('Restore stock for items in this bill?')) {
     (sale.items || []).forEach(it => {
       const p = AppData.products.find(x => x.id === it.pid);
-      if (p) p.stock += it.qty;
+      if (p) {
+        p.stock += it.qty;
+        // Save restored stock to Supabase immediately
+        if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+      }
     });
   }
   AppData.sales = AppData.sales.filter(s => s.id !== id);
   AppData.returns = AppData.returns.filter(r => r.saleId !== id);
-  // Delete from Supabase AND update localStorage immediately
   if (typeof deleteRecord === 'function') deleteRecord('sales', id).catch(console.error);
-  saveLocal();
   showToast('Bill deleted ✓');
   renderSales();
 }
@@ -373,7 +375,10 @@ function editSale(id) {
   // Restore stock from original bill
   (sale.items || []).forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
-    if (p) p.stock += it.qty;
+    if (p) {
+      p.stock += it.qty;
+      if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+    }
   });
 
   // Remove the old bill but remember its ID
