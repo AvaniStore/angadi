@@ -278,94 +278,24 @@ async function refreshFromDrive() {
   updateSidebarShopInfo();
 }
 
-// Merge offline data — Supabase is authoritative
+// Merge offline bills only — Supabase is master for everything else
 function mergeOfflineData() {
   try {
-    // Load deleted IDs to avoid restoring deleted records
-    const deleted = JSON.parse(localStorage.getItem('avani_deleted_ids') || '{}');
-    const isDeleted = (table, id) => (deleted[table] || []).includes(id);
-
-    // Merge offline bills from protected key
     const protectedBills = JSON.parse(localStorage.getItem('avani_offline_bills') || '[]');
-    if (protectedBills.length > 0) {
-      const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
-      const toMerge = protectedBills.filter(s => s.id && !onlineSaleIds.has(s.id) && !isDeleted('sales', s.id));
-      if (toMerge.length > 0) {
-        AppData.sales = [...AppData.sales, ...toMerge].sort((a,b) => (a.date||'').localeCompare(b.date||''));
-        toMerge.forEach(s => saveRecord('sales', s).catch(console.error));
-        showToast(`Merged ${toMerge.length} offline bill${toMerge.length!==1?'s':''} ✓`);
-      }
-      localStorage.removeItem('avani_offline_bills');
+    if (protectedBills.length === 0) return;
+    const onlineIds = new Set(AppData.sales.map(s => s.id));
+    const deleted = JSON.parse(localStorage.getItem('avani_deleted_ids') || '{}');
+    const deletedSales = deleted['sales'] || [];
+    const toMerge = protectedBills.filter(s =>
+      s.id && !onlineIds.has(s.id) && !deletedSales.includes(s.id)
+    );
+    if (toMerge.length > 0) {
+      AppData.sales = [...AppData.sales, ...toMerge]
+        .sort((a,b) => (a.date||'').localeCompare(b.date||''));
+      toMerge.forEach(s => saveRecord('sales', s).catch(console.error));
+      showToast(`Merged ${toMerge.length} offline bill${toMerge.length!==1?'s':''} ✓`);
     }
-
-    // Check main localStorage for offline bills
-    const localRaw = localStorage.getItem(LOCAL_KEY);
-    if (!localRaw) return;
-    const local = JSON.parse(localRaw);
-    if (!local) return;
-
-    if (local.sales && local.sales.length > AppData.sales.length) {
-      const onlineSaleIds = new Set(AppData.sales.map(s => s.id));
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().slice(0,10);
-      const offlineSales = (local.sales || []).filter(s =>
-        s.id && !onlineSaleIds.has(s.id) && s.date >= yesterdayStr && !isDeleted('sales', s.id)
-      );
-      if (offlineSales.length > 0) {
-        AppData.sales = [...AppData.sales, ...offlineSales].sort((a,b) => (a.date||'').localeCompare(b.date||''));
-        offlineSales.forEach(s => saveRecord('sales', s).catch(console.error));
-        showToast(`Merged ${offlineSales.length} offline bill${offlineSales.length!==1?'s':''} ✓`);
-      }
-    }
-
-    // Always merge offline product/vendor changes — timestamp decides which wins
-    {
-      try {
-        const offlineProducts = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
-        Object.values(offlineProducts).forEach(lp => {
-          if (isDeleted('products', lp.id)) return;
-          const sp = AppData.products.find(p => p.id === lp.id);
-          if (!sp) return;
-          const localTime = lp.updatedAt ? new Date(lp.updatedAt) : new Date(0);
-          const supabaseTime = sp.updatedAt ? new Date(sp.updatedAt) : new Date(0);
-          if (localTime > supabaseTime) {
-            console.log('Merging offline product:', lp.name, 'local:', lp.updatedAt, 'supabase:', sp.updatedAt);
-            const idx = AppData.products.findIndex(p => p.id === lp.id);
-            if (idx >= 0) AppData.products[idx] = lp;
-            const idx2 = AppData.products.findIndex(p => p.id === lp.id);
-            if (idx2 >= 0) AppData.products[idx2] = lp;
-            saveRecord('products', lp).then(() => {
-              const ex = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
-              delete ex[lp.id];
-              localStorage.setItem('avani_offline_products', JSON.stringify(ex));
-            }).catch(console.error);
-          } else {
-            // Supabase is newer - discard stale local
-            const ex = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
-            delete ex[lp.id];
-            localStorage.setItem('avani_offline_products', JSON.stringify(ex));
-          }
-        });
-      } catch(e) { console.error('product merge:', e); }
-
-      // Merge offline vendor changes
-      try {
-        const offlineVendors = JSON.parse(localStorage.getItem('avani_offline_vendors') || '{}');
-        Object.values(offlineVendors).forEach(lv => {
-          if (isDeleted('vendors', lv.id)) return;
-          const idx = AppData.vendors.findIndex(v => v.id === lv.id);
-          if (idx >= 0) AppData.vendors[idx] = lv; else AppData.vendors.push(lv);
-          saveRecord('vendors', lv).then(() => {
-            const ex = JSON.parse(localStorage.getItem('avani_offline_vendors') || '{}');
-            delete ex[lv.id];
-            localStorage.setItem('avani_offline_vendors', JSON.stringify(ex));
-          }).catch(console.error);
-        });
-      } catch(e) {}
-
-    }
-
+    localStorage.removeItem('avani_offline_bills');
   } catch(e) {
     console.error('mergeOfflineData error:', e);
   }
@@ -383,28 +313,14 @@ function showReconnectBtn(show) {
 // Auto-save — called after every data change
 function autoSave(table, obj) {
   saveLocal();
-  // Also save offline bills/products/vendors to a separate protected key
-  if (table === 'sales' && obj) {
+  // If offline, save bills to protected key for later sync
+  if (!navigator.onLine && table === 'sales' && obj) {
     try {
       const existing = JSON.parse(localStorage.getItem('avani_offline_bills') || '[]');
       if (!existing.find(s => s.id === obj.id)) {
         existing.push(obj);
         localStorage.setItem('avani_offline_bills', JSON.stringify(existing));
       }
-    } catch(e) {}
-  }
-  if (table === 'products' && obj) {
-    try {
-      const existing = JSON.parse(localStorage.getItem('avani_offline_products') || '{}');
-      existing[obj.id] = { ...obj, updatedAt: new Date().toISOString() };
-      localStorage.setItem('avani_offline_products', JSON.stringify(existing));
-    } catch(e) {}
-  }
-  if (table === 'vendors' && obj) {
-    try {
-      const existing = JSON.parse(localStorage.getItem('avani_offline_vendors') || '{}');
-      existing[obj.id] = obj;
-      localStorage.setItem('avani_offline_vendors', JSON.stringify(existing));
     } catch(e) {}
   }
   if (!currentUser || !navigator.onLine) return;
