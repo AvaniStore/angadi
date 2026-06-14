@@ -1,24 +1,18 @@
 // ============================================================
-//  OFFLINE — local storage backup + online status
+//  OFFLINE — status indicator + offline bill protection only
+//  localStorage is NOT used as a data cache anymore
+//  Supabase is always the master data source
 // ============================================================
 
-const LOCAL_KEY = 'avani_offline_data';
+const LOCAL_KEY = 'avani_offline_data'; // kept for compatibility but not used as cache
 
 function saveLocal() {
-  try {
-    localStorage.setItem(LOCAL_KEY, serialize());
-  } catch(e) {
-    console.warn('LocalStorage save failed', e);
-  }
+  // No-op — Supabase is master, we don't cache main data locally
+  // Only offline bills and deleted IDs are saved separately
 }
 
 function loadLocal() {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (raw) { deserialize(raw); return true; }
-  } catch(e) {
-    console.warn('LocalStorage load failed', e);
-  }
+  // No-op — always load from Supabase
   return false;
 }
 
@@ -41,21 +35,14 @@ window.addEventListener('online', async () => {
   updateOnlineStatus(false);
   if (currentUser) {
     showToast('Back online — syncing...');
-    // Only reload if we have no data in memory
-    if (AppData.sales.length === 0) {
-      await loadFromSupabase();
-      renderCurrentPage();
-      updateSidebarShopInfo();
-    } else {
-      // Just push local offline changes to Supabase without reloading
-      mergeOfflineData();
-      updateOnlineStatus(true);
-    }
+    await loadFromSupabase();
+    renderCurrentPage();
+    updateSidebarShopInfo();
   }
 });
 
 window.addEventListener('offline', () => {
+  _supabaseConnected = false;
   updateOnlineStatus(false);
-  localStorage.setItem('avani_was_offline', 'true');
-  showToast('Offline — changes saved locally');
+  showToast('Offline — bills will be saved locally and synced when back online');
 });
