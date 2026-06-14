@@ -406,7 +406,11 @@ function saveBill() {
 
   valid.forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
-    if (p) p.stock -= it.qty;
+    if (p) {
+      p.stock -= it.qty;
+      // Save updated stock to Supabase immediately
+      if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+    }
   });
 
   autoSave('sales', sale);
