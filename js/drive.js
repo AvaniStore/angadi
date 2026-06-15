@@ -257,18 +257,6 @@ async function saveToGoogle() {
   }
 }
 
-// Auto-save — save changed record immediately
-function autoSave(table, obj) {
-  saveLocal();
-  if (!currentUser) return;
-  if (table && obj) {
-    saveRecord(table, obj).catch(console.error);
-    if (table === 'sales' || table === 'products') saveSettingsToSupabase().catch(console.error);
-  }
-  const statusEl = document.getElementById('save-status');
-  if (statusEl) { statusEl.textContent = 'Saved ✓'; setTimeout(() => { statusEl.textContent = ''; }, 2000); }
-}
-
 // Refresh from Supabase
 async function refreshFromDrive() {
   if (!currentUser) { showToast('Please sign in first'); return; }
