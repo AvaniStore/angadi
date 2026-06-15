@@ -320,7 +320,10 @@ function saveReturn(saleId) {
     refund += amt;
     // Restore stock
     const p = AppData.products.find(x => x.id === it.pid);
-    if (p) p.stock += qty;
+    if (p) {
+      p.stock += qty;
+      if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+    }
   });
 
   if (!returnedItems.length) { showToast('Enter qty for at least one item'); return; }
