@@ -470,6 +470,8 @@ function saveStockAdjust(pid) {
   const loss = type === 'remove' ? qty * p.cost : 0;
 
   p.stock += change;
+  // Save updated stock to Supabase immediately
+  if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
 
   if (!AppData.adjustments) AppData.adjustments = [];
   AppData.adjustments.push({
