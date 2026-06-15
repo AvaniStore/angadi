@@ -281,6 +281,8 @@ function savePurchaseOrder() {
     if (!product) return;
     product.stock += it.qty;
     if (it.cost > 0) product.cost = it.cost;
+    // Save updated stock to Supabase immediately
+    if (typeof saveRecord === 'function') saveRecord('products', product).catch(console.error);
     const lineTotal = it.qty * it.cost;
     total += lineTotal;
     poItemDetails.push({
