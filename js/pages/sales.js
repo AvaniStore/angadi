@@ -365,6 +365,17 @@ function deleteSale(id) {
   AppData.sales = AppData.sales.filter(s => s.id !== id);
   AppData.returns = AppData.returns.filter(r => r.saleId !== id);
   if (typeof deleteRecord === 'function') deleteRecord('sales', id).catch(console.error);
+  // Remove customer from directory if they have no other bills and weren't manually added
+  if (sale.customer && sale.customer !== 'Walk-in') {
+    const otherBills = AppData.sales.filter(s => s.customer && s.customer.toLowerCase() === sale.customer.toLowerCase());
+    if (otherBills.length === 0 && AppData.customers) {
+      const cust = AppData.customers.find(c => c.name.toLowerCase() === sale.customer.toLowerCase());
+      if (cust && !cust.manuallyAdded) {
+        AppData.customers = AppData.customers.filter(c => c.id !== cust.id);
+        if (typeof deleteRecord === 'function') deleteRecord('customers', cust.id).catch(console.error);
+      }
+    }
+  }
   showToast('Bill deleted ✓');
   renderSales();
 }
