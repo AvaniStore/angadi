@@ -5,21 +5,17 @@
 function renderCustomers() {
   if (!AppData.customers) AppData.customers = [];
 
-  // Build from sales history too — pick up customers not yet in directory
-  AppData.sales.forEach(s => {
-    if (!s.customer || s.customer === 'Walk-in') return;
-    const existing = AppData.customers.find(c => c.name.toLowerCase() === s.customer.toLowerCase());
-    if (!existing) {
-      AppData.customers.push({ id: uid(), name: s.customer, phone: s.phone || '', lastBill: s.date, billCount: 0 });
-    }
-  });
-  // Update bill counts
+  // Update bill counts and remove customers with no bills
   AppData.customers.forEach(c => {
-    c.billCount = AppData.sales.filter(s => s.customer && s.customer.toLowerCase() === c.name.toLowerCase()).length;
     const bills = AppData.sales.filter(s => s.customer && s.customer.toLowerCase() === c.name.toLowerCase());
+    c.billCount = bills.length;
     c.lastBill = bills.length ? bills.sort((a,b) => b.date.localeCompare(a.date))[0].date : c.lastBill;
     c.totalSpent = bills.reduce((a,s) => a+(s.total||0), 0);
   });
+
+  // Remove customers that were auto-added from bills but now have no bills
+  // (keeps manually added customers even with 0 bills)
+  AppData.customers = AppData.customers.filter(c => c.billCount > 0 || c.manuallyAdded);
   AppData.customers.sort((a,b) => a.name.localeCompare(b.name));
 
   const search = (document.getElementById('cust-search') || {}).value || '';
@@ -95,7 +91,7 @@ function saveCustomer(id) {
     const c = AppData.customers.find(x => x.id === id);
     if (c) { c.name = name; c.phone = phone; }
   } else {
-    AppData.customers.push({ id: uid(), name, phone, lastBill: '', billCount: 0, totalSpent: 0 });
+    AppData.customers.push({ id: uid(), name, phone, lastBill: '', billCount: 0, totalSpent: 0, manuallyAdded: true });
     AppData.customers.sort((a,b) => a.name.localeCompare(b.name));
   }
   autoSave();
