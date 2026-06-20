@@ -397,7 +397,7 @@ function saveBill() {
   const phone = document.getElementById('b-phone').value.trim();
   const date = document.getElementById('b-date').value || today();
   const suffix = (document.getElementById('b-suffix')?.value || '').trim();
-  const billNo = editingBillId || nextBillNumber(suffix); // keep original ID if editing
+  const billNo = editingBillId || nextBillNumber(suffix, date); // keep original ID if editing
   editingBillId = null; // reset after use
   saveCustomerFromBill(customer, phone);
 
