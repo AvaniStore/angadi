@@ -129,6 +129,7 @@ async function loadFromSupabase() {
         lastBillDate: s.last_bill_date || '',
         lastBillSeq: s.last_bill_seq || 0,
         lastPONumber: s.last_po_number || 0,
+        billSeqByDate: s.bill_seq_by_date || {},
       };
       console.log('Settings loaded — lastBillDate:', s.last_bill_date, 'lastBillSeq:', s.last_bill_seq);
     }
@@ -203,6 +204,7 @@ async function saveSettingsToSupabase() {
     state: s.state, phone: s.phone, gstin: s.gstin||'', email: s.email||'',
     last_bill_number: s.lastBillNumber||0, last_bill_date: s.lastBillDate||'',
     last_bill_seq: s.lastBillSeq||0, last_po_number: s.lastPONumber||0,
+    bill_seq_by_date: s.billSeqByDate || {},
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
   if (error) console.error('Save settings error:', error);
