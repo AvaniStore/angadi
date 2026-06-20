@@ -13,6 +13,7 @@ const AppData = {
     email: '',
     lastBillNumber: 0,   // sequential bill counter
     lastPONumber: 0,     // sequential PO counter
+    billSeqByDate: {},   // per-date bill sequence map, e.g. {"1306": 5} — keeps bill numbers tied to the bill's own date
   },
   products: [],
   vendors: [],
@@ -28,20 +29,27 @@ function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-function nextBillNumber(suffix) {
-  const now = new Date();
-  const dateStr = String(now.getDate()).padStart(2,'0') + String(now.getMonth()+1).padStart(2,'0');
-  const lastDate = AppData.settings.lastBillDate || '';
-
-  // Reset sequence if new day
-  if (lastDate !== dateStr) {
-    AppData.settings.lastBillDate = dateStr;
-    AppData.settings.lastBillSeq = 0;
+function nextBillNumber(suffix, billDate) {
+  // Use the bill's own date if provided, otherwise fall back to today
+  let d = new Date();
+  if (billDate) {
+    const parsed = new Date(billDate + 'T00:00:00');
+    if (!isNaN(parsed.getTime())) d = parsed;
   }
-  AppData.settings.lastBillSeq = (AppData.settings.lastBillSeq || 0) + 1;
-  AppData.settings.lastBillNumber = (AppData.settings.lastBillNumber || 0) + 1; // keep overall counter
+  const dateStr = String(d.getDate()).padStart(2,'0') + String(d.getMonth()+1).padStart(2,'0');
 
-  const seq = String(AppData.settings.lastBillSeq).padStart(3, '0');
+  // Track sequence per date-string so entering bills out of order (e.g. yesterday's
+  // bill entered after today's) doesn't reset or clash with another date's sequence
+  if (!AppData.settings.billSeqByDate) AppData.settings.billSeqByDate = {};
+  const seqMap = AppData.settings.billSeqByDate;
+  seqMap[dateStr] = (seqMap[dateStr] || 0) + 1;
+
+  // Keep legacy fields in sync for backward compatibility
+  AppData.settings.lastBillDate = dateStr;
+  AppData.settings.lastBillSeq = seqMap[dateStr];
+  AppData.settings.lastBillNumber = (AppData.settings.lastBillNumber || 0) + 1; // overall counter
+
+  const seq = String(seqMap[dateStr]).padStart(3, '0');
   const base = `AVN-${dateStr}-${seq}`;
   return suffix ? `${base}-${suffix.toUpperCase()}` : base;
 }
