@@ -3,6 +3,7 @@
 // ============================================================
 
 let poItems = []; // items in current PO
+let poDraft = { vendorId: '', billNo: '', date: '', payment: 'Cash' }; // persists PO header fields across navigation
 
 function renderVendors() {
   const vendorCards = AppData.vendors.length ? `
@@ -71,18 +72,18 @@ function renderVendors() {
       <div class="form-grid">
         <div class="form-group">
           <label>Vendor *</label>
-          <select id="po-vendor" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+          <select id="po-vendor" onchange="poDraft.vendorId=this.value" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
             <option value="">— select vendor —</option>
-            ${AppData.vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('')}
+            ${AppData.vendors.map(v => `<option value="${v.id}" ${poDraft.vendorId===v.id?'selected':''}>${v.name}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
           <label>Vendor invoice/bill no.</label>
-          <input id="po-billno" placeholder="Optional" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+          <input id="po-billno" placeholder="Optional" value="${poDraft.billNo || ''}" oninput="poDraft.billNo=this.value" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
         </div>
         <div class="form-group">
           <label>Date</label>
-          <input id="po-date" type="date" value="${today()}" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+          <input id="po-date" type="date" value="${poDraft.date || today()}" onchange="poDraft.date=this.value" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
         </div>
         <div class="form-group">
           <label>Payment method</label>
@@ -96,7 +97,7 @@ function renderVendors() {
             <button type="button" id="po-pay-credit" onclick="setPOPayment('Credit')"
               class="btn btn-sm">📋 Credit</button>
           </div>
-          <input type="hidden" id="po-payment" value="Cash">
+          <input type="hidden" id="po-payment" value="${poDraft.payment || 'Cash'}">
         </div>
       </div>
 
@@ -132,6 +133,21 @@ function renderVendors() {
 
   if (!poItems.length) poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }];
   renderPORows();
+  // Restore the highlighted payment method button to match poDraft
+  if (poDraft.payment) setPOPayment(poDraft.payment);
+
+  // If still mid-edit of a PO (e.g. user navigated to Inventory and back), restore the banner
+  if (window._editingPOId) {
+    const poSection = document.getElementById('po-rows')?.closest('.card');
+    if (poSection && !document.getElementById('po-edit-banner')) {
+      const banner = document.createElement('div');
+      banner.id = 'po-edit-banner';
+      banner.style.cssText = 'background:#fef3c7;border:1px solid #d97706;border-radius:var(--radius);padding:8px 14px;margin-bottom:10px;font-size:13px;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:10px';
+      banner.innerHTML = `<span>✏️ Editing <strong>${window._editingPONumber || window._editingPOId}</strong> — original date &amp; PO number preserved. Only fix errors.</span>
+        <button class="btn btn-xs" onclick="cancelPOEdit()" style="color:#92400e;border-color:#d97706;white-space:nowrap">✕ Cancel</button>`;
+      poSection.insertAdjacentElement('beforebegin', banner);
+    }
+  }
 }
 
 function renderPORows() {
@@ -234,6 +250,7 @@ function poPickProduct(i, pid) {
 function poSetQty(i, v) { poItems[i].qty = parseInt(v) || 1; updatePOTotal(); }
 function poSetCost(i, v) { poItems[i].cost = parseFloat(v) || 0; updatePOTotal(); }
 function setPOPayment(method) {
+  poDraft.payment = method;
   document.getElementById('po-payment').value = method;
   const styles = {
     'Cash': 'background:#e8f5e8;border-color:#3a9e3a;color:#2d7a2d;font-weight:600',
@@ -250,7 +267,11 @@ function setPOPayment(method) {
 
 function addPORow() { poItems.push({ pid: '', name: '', brand: '', qty: 1, cost: 0 }); renderPORows(); }
 function removePORow(i) { poItems.splice(i, 1); if (!poItems.length) addPORow(); else renderPORows(); }
-function clearPO() { poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }]; renderVendors(); }
+function clearPO() {
+  poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }];
+  poDraft = { vendorId: '', billNo: '', date: '', payment: 'Cash' };
+  renderVendors();
+}
 
 function updatePOTotal() {
   const total = poItems.reduce((a, it) => a + (it.qty || 0) * (it.cost || 0), 0);
@@ -308,6 +329,7 @@ function savePurchaseOrder() {
   autoSave();
   showPurchaseBill(purchase, vendor);
   poItems = [{ pid: '', qty: 1, cost: 0 }];
+  poDraft = { vendorId: '', billNo: '', date: '', payment: 'Cash' };
   renderVendors();
 }
 
@@ -414,28 +436,20 @@ function editPurchaseOrder(id) {
 
   // Load PO items into the form
   poItems = (po.items || []).map(it => ({ ...it }));
+  poDraft = { vendorId: po.vendorId || '', billNo: po.billNo || '', date: po.date || today(), payment: po.payment || 'Cash' };
 
   renderVendors();
 
-  // Pre-fill form fields after render
+  // Store original PO info and show edit banner
   setTimeout(() => {
-    const vendorEl = document.getElementById('po-vendor');
-    const billnoEl = document.getElementById('po-billno');
-    const dateEl = document.getElementById('po-date');
-    if (vendorEl) vendorEl.value = po.vendorId || '';
-    if (billnoEl) billnoEl.value = po.billNo || '';
-    if (dateEl) dateEl.value = po.date || today(); // preserve original date
-    if (po.payment) setPOPayment(po.payment);
-    renderPORows();
-
-    // Store original PO info
     window._editingPOId = id;
     window._editingPONumber = po.poNumber;
 
     // Show amber editing banner above the PO form
     const poSection = document.getElementById('po-rows')?.closest('.card');
-    if (poSection && !document.getElementById('po-edit-banner')) {
-      const banner = document.createElement('div');
+    let banner = document.getElementById('po-edit-banner');
+    if (poSection && !banner) {
+      banner = document.createElement('div');
       banner.id = 'po-edit-banner';
       banner.style.cssText = 'background:#fef3c7;border:1px solid #d97706;border-radius:var(--radius);padding:8px 14px;margin-bottom:10px;font-size:13px;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:10px';
       banner.innerHTML = `<span>✏️ Editing <strong>${po.poNumber || po.id}</strong> — original date &amp; PO number preserved. Only fix errors.</span>
@@ -452,6 +466,7 @@ function cancelPOEdit() {
   window._editingPOId = null;
   window._editingPONumber = null;
   poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }];
+  poDraft = { vendorId: '', billNo: '', date: '', payment: 'Cash' };
   renderVendors();
   showToast('Edit cancelled');
 }
