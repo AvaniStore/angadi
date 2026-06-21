@@ -167,9 +167,33 @@ function renderMonthlyReport() {
   // Show selected month data
   const selected = months.find(m => m.from === selectedMonth) || months[0];
   if (selected) {
+    // Day-by-day breakdown for the selected month
+    const startDate = new Date(selected.from + 'T00:00:00');
+    const endDate = new Date(selected.to + 'T00:00:00');
+    const dayList = [];
+    for (let dt = new Date(startDate); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
+      const dateStr = dt.toISOString().slice(0, 10);
+      const daySales = AppData.sales.filter(x => x.date === dateStr);
+      if (daySales.length === 0) continue; // skip days with no bills to keep the table compact
+      const daySum = reportSummary(daySales);
+      dayList.push({ date: dateStr, ...daySum });
+    }
+
+    const monthDayRows = dayList.map(d => `
+      <tr>
+        <td>${fmtDate(d.date)} (${new Date(d.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })})</td>
+        <td>${fmt(d.revenue)}</td>
+        <td style="color:var(--accent-dark);font-weight:500">${fmt(d.profit)}</td>
+        <td>${d.bills}</td>
+      </tr>`).join('');
+
     document.getElementById('monthly-result').innerHTML = `
       <div style="font-size:13px;color:var(--text3);margin-bottom:12px">${selected.label} — ${fmtDate(selected.from)} to ${fmtDate(selected.to)}</div>
       ${reportMetricsHtml(selected.s, selected.from, selected.to)}
+      <div class="table-wrap" style="margin-bottom:16px">
+        <table><thead><tr><th>Day</th><th>Revenue</th><th>Profit</th><th>Bills</th></tr></thead>
+        <tbody>${monthDayRows || '<tr><td colspan="4" style="text-align:center;color:var(--text3)">No bills this month</td></tr>'}</tbody></table>
+      </div>
       ${salesTableHtml(selected.salesArr)}
     `;
   }
