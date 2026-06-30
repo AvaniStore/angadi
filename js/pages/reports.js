@@ -12,6 +12,7 @@ function renderReports() {
       <button class="tab-btn ${activeReportTab === 'weekly' ? 'active' : ''}" onclick="switchReportTab('weekly', this)">Weekly</button>
       <button class="tab-btn ${activeReportTab === 'monthly' ? 'active' : ''}" onclick="switchReportTab('monthly', this)">Monthly</button>
       <button class="tab-btn ${activeReportTab === 'range' ? 'active' : ''}" onclick="switchReportTab('range', this)">Date range</button>
+      <button class="tab-btn ${activeReportTab === 'product' ? 'active' : ''}" onclick="switchReportTab('product', this)">By Product</button>
     </div>
     <div id="report-content"></div>
   `;
@@ -30,6 +31,7 @@ function renderReportTab(tab) {
   else if (tab === 'weekly') renderWeeklyReport();
   else if (tab === 'monthly') renderMonthlyReport();
   else if (tab === 'range') renderRangeReport();
+  else if (tab === 'product') renderProductReport();
 }
 
 function reportMetricsHtml(s, from, to) {
@@ -226,5 +228,123 @@ function runRangeReport() {
     <div style="font-size:13px;color:var(--text3);margin:12px 0">${fmtDate(from)} to ${fmtDate(to)}</div>
     ${reportMetricsHtml(s, from, to)}
     ${salesTableHtml(salesArr)}
+  `;
+}
+
+function renderProductReport() {
+  const brands = [...new Set(AppData.products.map(p => p.brand).filter(Boolean))].sort();
+  const monthStart = new Date(); monthStart.setDate(1);
+  const defaultFrom = monthStart.toISOString().slice(0, 10);
+
+  document.getElementById('report-content').innerHTML = `
+    <div class="card" style="margin-bottom:14px">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Brand</label>
+          <select id="pr-brand" onchange="updateProductFilterOptions()"
+            style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+            <option value="">All brands</option>
+            ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Product <span style="font-size:11px;color:var(--text3)">— optional, narrows to one item</span></label>
+          <select id="pr-product"
+            style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+            <option value="">All products${brands.length ? ' in selected brand' : ''}</option>
+          </select>
+        </div>
+        <div class="form-group"><label>From</label><input id="pr-from" type="date" value="${defaultFrom}"></div>
+        <div class="form-group"><label>To</label><input id="pr-to" type="date" value="${today()}"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="runProductReport()">Generate report</button>
+    </div>
+    <div id="product-report-result"></div>
+  `;
+  updateProductFilterOptions();
+}
+
+function updateProductFilterOptions() {
+  const brand = document.getElementById('pr-brand')?.value || '';
+  const productSel = document.getElementById('pr-product');
+  if (!productSel) return;
+  const matching = AppData.products
+    .filter(p => !brand || p.brand === brand)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  productSel.innerHTML = `<option value="">All products${brand ? ' in ' + brand : ''}</option>` +
+    matching.map(p => `<option value="${p.id}">${p.name}${p.brand ? ' (' + p.brand + ')' : ''}</option>`).join('');
+}
+
+function runProductReport() {
+  const brand = document.getElementById('pr-brand').value;
+  const productId = document.getElementById('pr-product').value;
+  const from = document.getElementById('pr-from').value;
+  const to = document.getElementById('pr-to').value;
+  if (!from || !to) { showToast('Select both dates'); return; }
+  if (from > to) { showToast('From date must be before To date'); return; }
+  if (!brand && !productId) { showToast('Select a brand or a specific product'); return; }
+
+  const salesArr = salesInRange(from, to);
+
+  // Build a map of pid -> { name, brand, qty, revenue, profit, bills (set) }
+  const productMap = {};
+  salesArr.forEach(s => {
+    (s.items || []).forEach(it => {
+      if (!it.pid) return;
+      if (productId && it.pid !== productId) return;
+      if (brand && !productId && it.brand !== brand) return;
+      const base = (parseFloat(it.price) || 0) * (parseFloat(it.qty) || 0);
+      const disc = base * ((parseFloat(it.discount) || 0) / 100);
+      const lineRevenue = base - disc;
+      const lineCost = (parseFloat(it.cost) || 0) * (parseFloat(it.qty) || 0);
+      const lineProfit = lineRevenue - lineCost;
+
+      if (!productMap[it.pid]) {
+        productMap[it.pid] = { pid: it.pid, name: it.name, brand: it.brand || '', qty: 0, revenue: 0, profit: 0, billIds: new Set() };
+      }
+      productMap[it.pid].qty += parseFloat(it.qty) || 0;
+      productMap[it.pid].revenue += lineRevenue;
+      productMap[it.pid].profit += lineProfit;
+      productMap[it.pid].billIds.add(s.id);
+    });
+  });
+
+  const rows = Object.values(productMap).sort((a, b) => b.revenue - a.revenue);
+  const totalQty = rows.reduce((a, r) => a + r.qty, 0);
+  const totalRevenue = rows.reduce((a, r) => a + r.revenue, 0);
+  const totalProfit = rows.reduce((a, r) => a + r.profit, 0);
+  const totalBills = new Set(rows.flatMap(r => [...r.billIds])).size;
+
+  const label = productId
+    ? (AppData.products.find(p => p.id === productId)?.name || 'Selected product')
+    : (brand || 'All products');
+
+  const tableRows = rows.map(r => {
+    const product = AppData.products.find(p => p.id === r.pid);
+    const currentStock = product ? product.stock : '—';
+    return `<tr>
+      <td style="font-weight:500">${r.name}${r.brand ? ` <span style="color:var(--text3);font-size:11px">(${r.brand})</span>` : ''}</td>
+      <td style="text-align:center">${r.qty}</td>
+      <td style="text-align:center">${r.billIds.size}</td>
+      <td>${fmt(r.revenue)}</td>
+      <td style="color:var(--accent-dark);font-weight:600">${fmt(r.profit)}</td>
+      <td style="text-align:center;color:var(--text3)">${currentStock}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('product-report-result').innerHTML = `
+    <div style="font-size:13px;color:var(--text3);margin-bottom:12px">${label} — ${fmtDate(from)} to ${fmtDate(to)}</div>
+    <div class="metrics-grid" style="margin-bottom:16px">
+      <div class="metric-card"><div class="metric-label">Total qty sold</div><div class="metric-value">${totalQty}</div></div>
+      <div class="metric-card"><div class="metric-label">Revenue</div><div class="metric-value">${fmt(totalRevenue)}</div></div>
+      <div class="metric-card"><div class="metric-label">Profit</div><div class="metric-value green">${fmt(totalProfit)}</div></div>
+      <div class="metric-card"><div class="metric-label">Bills containing these items</div><div class="metric-value">${totalBills}</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Product</th><th>Qty sold</th><th>Bills</th><th>Revenue</th><th>Profit</th><th>Current stock</th></tr></thead>
+        <tbody>${tableRows || '<tr><td colspan="6" style="text-align:center;color:var(--text3)">No sales found for this selection in this period</td></tr>'}</tbody>
+      </table>
+    </div>
   `;
 }
