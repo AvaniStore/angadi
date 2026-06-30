@@ -36,6 +36,20 @@ function renderSettings() {
 
     <div class="card">
       <div class="settings-section">
+        <h3>Clean up brand names</h3>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px">
+          Fixes products where the same brand was typed with different capitalization or extra spaces
+          (e.g. "24 Mantra" vs "24 mantra"), which makes them show up as separate brands in filters and reports.
+        </p>
+        <div id="brand-cleanup-result"></div>
+        <div class="form-actions">
+          <button class="btn" onclick="previewBrandCleanup()">🔍 Check for inconsistent brand names</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-section">
         <h3>Data management</h3>
         <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Your data is auto-saved to Google Drive. You can also export a backup.</p>
         <div class="form-actions">
@@ -212,6 +226,96 @@ function resetBillingData() {
   autoSave();
   showToast('Bills and purchase history cleared ✓');
   renderSettings();
+}
+
+// ---- Brand name cleanup ----
+// Finds products whose brand field differs only by capitalization or stray
+// whitespace from another brand already in use, and groups them so they
+// can be merged onto one consistent spelling/casing.
+function _findBrandInconsistencies() {
+  const groups = {}; // normalized key -> { rawForms: Map<raw, count>, productIds: [] }
+  AppData.products.forEach(p => {
+    const raw = (p.brand || '');
+    const cleaned = raw.replace(/\s+/g, ' ').trim();
+    if (!cleaned) return;
+    const key = cleaned.toLowerCase();
+    if (!groups[key]) groups[key] = { rawForms: new Map(), productIds: [] };
+    groups[key].rawForms.set(raw, (groups[key].rawForms.get(raw) || 0) + 1);
+    groups[key].productIds.push(p.id);
+  });
+
+  // Only keep groups where more than one distinct raw form exists —
+  // those are the ones that need merging
+  const inconsistent = [];
+  Object.entries(groups).forEach(([key, g]) => {
+    if (g.rawForms.size > 1) {
+      // Canonical form = whichever exact raw string is used most often
+      const sortedForms = [...g.rawForms.entries()].sort((a, b) => b[1] - a[1]);
+      const canonical = sortedForms[0][0].replace(/\s+/g, ' ').trim();
+      inconsistent.push({
+        key, canonical,
+        variants: sortedForms.map(([form, count]) => ({ form, count })),
+        productIds: g.productIds,
+      });
+    }
+  });
+  return inconsistent;
+}
+
+function previewBrandCleanup() {
+  const inconsistencies = _findBrandInconsistencies();
+  const resultEl = document.getElementById('brand-cleanup-result');
+  if (!resultEl) return;
+
+  if (!inconsistencies.length) {
+    resultEl.innerHTML = `<div class="alert alert-green" style="margin-bottom:14px">✓ No inconsistent brand names found — everything looks clean.</div>`;
+    return;
+  }
+
+  const rows = inconsistencies.map(g => `
+    <div style="border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px">
+      <div style="font-size:13px;margin-bottom:6px">
+        Will become: <strong style="color:var(--accent-dark)">${g.canonical}</strong>
+      </div>
+      <div style="font-size:12px;color:var(--text3)">
+        ${g.variants.map(v => `"${v.form}" (${v.count} product${v.count !== 1 ? 's' : ''})`).join(' &nbsp;+&nbsp; ')}
+      </div>
+    </div>
+  `).join('');
+
+  resultEl.innerHTML = `
+    <div class="alert alert-amber" style="margin-bottom:14px">
+      Found ${inconsistencies.length} brand${inconsistencies.length !== 1 ? 's' : ''} with inconsistent spelling/casing across ${inconsistencies.reduce((a,g)=>a+g.productIds.length,0)} products.
+    </div>
+    ${rows}
+    <div class="form-actions" style="margin-top:10px">
+      <button class="btn btn-primary" onclick="applyBrandCleanup()">✓ Fix all — apply consistent names</button>
+    </div>
+  `;
+}
+
+function applyBrandCleanup() {
+  const inconsistencies = _findBrandInconsistencies();
+  if (!inconsistencies.length) { showToast('Nothing to fix'); return; }
+
+  if (!confirm(`This will update the brand name on ${inconsistencies.reduce((a,g)=>a+g.productIds.length,0)} products to use one consistent spelling per brand. Continue?`)) return;
+
+  let updated = 0;
+  inconsistencies.forEach(g => {
+    g.productIds.forEach(pid => {
+      const p = AppData.products.find(x => x.id === pid);
+      if (p && p.brand !== g.canonical) {
+        p.brand = g.canonical;
+        if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+        updated++;
+      }
+    });
+  });
+
+  saveLocal();
+  showToast(`Updated brand name on ${updated} product${updated !== 1 ? 's' : ''} ✓`);
+  const resultEl = document.getElementById('brand-cleanup-result');
+  if (resultEl) resultEl.innerHTML = `<div class="alert alert-green" style="margin-bottom:14px">✓ Cleaned up. Re-check anytime if you add more products.</div>`;
 }
 
 function recalculateAllProfits() {
