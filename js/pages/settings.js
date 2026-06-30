@@ -249,9 +249,12 @@ function _findBrandInconsistencies() {
   const inconsistent = [];
   Object.entries(groups).forEach(([key, g]) => {
     if (g.rawForms.size > 1) {
-      // Canonical form = whichever exact raw string is used most often
+      // Prefer a variant that starts with a capital letter as the canonical form.
+      // Among capitalized variants (or if none are capitalized), pick the most-used one.
       const sortedForms = [...g.rawForms.entries()].sort((a, b) => b[1] - a[1]);
-      const canonical = sortedForms[0][0].replace(/\s+/g, ' ').trim();
+      const capitalized = sortedForms.filter(([form]) => /^[A-Z]/.test(form.trim()));
+      const chosen = (capitalized.length ? capitalized : sortedForms)[0];
+      const canonical = chosen[0].replace(/\s+/g, ' ').trim();
       inconsistent.push({
         key, canonical,
         variants: sortedForms.map(([form, count]) => ({ form, count })),
