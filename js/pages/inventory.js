@@ -13,18 +13,20 @@ const WEIGHTS = ['100g', '200g', '250g', '500g', '1kg', '200ml', '250ml', '500ml
 // When two products use different casing for the "same" brand (e.g. "24 Mantra"
 // vs "24 mantra"), the most frequently used casing wins as the canonical form.
 function getCanonicalBrands() {
-  const counts = {}; // lowercased trimmed key -> { display: string, count: number }
+  const groups = {}; // lowercased trimmed key -> Map<raw, count>
   AppData.products.forEach(p => {
     const raw = (p.brand || '').replace(/\s+/g, ' ').trim();
     if (!raw) return;
     const key = raw.toLowerCase();
-    if (!counts[key]) counts[key] = { display: raw, count: 0 };
-    counts[key].count++;
-    // Prefer the most-used casing as the canonical display form
-    if (counts[key].count === 1) counts[key].display = raw;
+    if (!groups[key]) groups[key] = new Map();
+    groups[key].set(raw, (groups[key].get(raw) || 0) + 1);
   });
-  return Object.values(counts)
-    .map(c => c.display)
+  return Object.values(groups)
+    .map(forms => {
+      const sorted = [...forms.entries()].sort((a, b) => b[1] - a[1]);
+      const capitalized = sorted.filter(([form]) => /^[A-Z]/.test(form));
+      return (capitalized.length ? capitalized : sorted)[0][0];
+    })
     .sort((a, b) => a.localeCompare(b));
 }
 
@@ -67,6 +69,7 @@ function pickBrand(name) {
 
 function filterInventoryTable(search) {
   const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
+  const brandFilter = (document.getElementById('inv-brand-filter') || {}).value || '';
   const q = (search || '').toLowerCase();
 
   const filtered = AppData.products.filter(p => {
@@ -74,7 +77,8 @@ function filterInventoryTable(search) {
       (p.brand || '').toLowerCase().includes(q) ||
       (p.cat || '').toLowerCase().includes(q);
     const matchCat = !catFilter || p.cat === catFilter;
-    return matchSearch && matchCat;
+    const matchBrand = !brandFilter || p.brand === brandFilter;
+    return matchSearch && matchCat && matchBrand;
   });
 
   const rows = filtered.map(p => {
@@ -114,12 +118,14 @@ function filterInventoryTable(search) {
 function renderInventory() {
   const search = (document.getElementById('inv-search') || {}).value || '';
   const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
+  const brandFilter = (document.getElementById('inv-brand-filter') || {}).value || '';
   const filtered = AppData.products.filter(p => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.brand || '').toLowerCase().includes(search.toLowerCase()) ||
       (p.cat || '').toLowerCase().includes(search.toLowerCase());
     const matchCat = !catFilter || p.cat === catFilter;
-    return matchSearch && matchCat;
+    const matchBrand = !brandFilter || p.brand === brandFilter;
+    return matchSearch && matchCat && matchBrand;
   });
 
   const rows = filtered.map(p => {
@@ -165,6 +171,10 @@ function renderInventory() {
 
     <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <input id="inv-search" type="text" placeholder="Search by name, brand, category..." style="flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)" oninput="filterInventoryTable(this.value)" value="${search}">
+      <select id="inv-brand-filter" onchange="filterInventoryTable(document.getElementById('inv-search').value)" style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+        <option value="">All brands</option>
+        ${getCanonicalBrands().map(b => `<option value="${b}" ${brandFilter===b?'selected':''}>${b}</option>`).join('')}
+      </select>
       <select id="inv-cat-filter" onchange="filterInventoryTable(document.getElementById('inv-search').value)" style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
         <option value="">All categories</option>
         ${CATEGORIES.map(c => `<option value="${c}" ${c === catFilter ? 'selected' : ''}>${c}</option>`).join('')}
@@ -321,13 +331,16 @@ function saveProduct() {
   AppData.products.sort((a, b) => a.name.localeCompare(b.name));
   editingProductId = null;
   autoSave('products', product);
-  // Remember active filter before re-rendering
+  // Remember active filters before re-rendering
   const prevCatFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
+  const prevBrandFilter = (document.getElementById('inv-brand-filter') || {}).value || '';
   const prevSearch = (document.getElementById('inv-search') || {}).value || '';
   renderInventory();
-  // Restore previous filter (not the product's category)
+  // Restore previous filters (not the saved product's own category/brand)
   const catFilter = document.getElementById('inv-cat-filter');
   if (catFilter) catFilter.value = prevCatFilter;
+  const brandFilter = document.getElementById('inv-brand-filter');
+  if (brandFilter) brandFilter.value = prevBrandFilter;
   filterInventoryTable(prevSearch);
 }
 
