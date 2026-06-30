@@ -7,6 +7,64 @@ let editingProductId = null;
 const CATEGORIES = ['Grocery', 'Home Care', 'Cosmetics', 'Snacks', 'Vegetables', 'Fruits', 'Other'];
 const WEIGHTS = ['100g', '200g', '250g', '500g', '1kg', '200ml', '250ml', '500ml', '1000ml', 'pieces', 'Other'];
 
+// ---- Brand normalization & autocomplete ----
+// Returns the distinct list of brand names already used in inventory,
+// trimmed of stray whitespace and de-duplicated case-insensitively.
+// When two products use different casing for the "same" brand (e.g. "24 Mantra"
+// vs "24 mantra"), the most frequently used casing wins as the canonical form.
+function getCanonicalBrands() {
+  const counts = {}; // lowercased trimmed key -> { display: string, count: number }
+  AppData.products.forEach(p => {
+    const raw = (p.brand || '').replace(/\s+/g, ' ').trim();
+    if (!raw) return;
+    const key = raw.toLowerCase();
+    if (!counts[key]) counts[key] = { display: raw, count: 0 };
+    counts[key].count++;
+    // Prefer the most-used casing as the canonical display form
+    if (counts[key].count === 1) counts[key].display = raw;
+  });
+  return Object.values(counts)
+    .map(c => c.display)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+// Cleans a brand string the same way every time it's saved:
+// collapses extra/odd whitespace, trims ends, and if it matches an
+// existing brand case-insensitively, reuses that brand's canonical casing.
+function normalizeBrand(raw) {
+  const cleaned = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  const existing = getCanonicalBrands().find(b => b.toLowerCase() === cleaned.toLowerCase());
+  return existing || cleaned;
+}
+
+function showBrandSuggestions(query) {
+  const dropdown = document.getElementById('brand-suggestions');
+  if (!dropdown) return;
+  const brands = getCanonicalBrands();
+  const q = (query || '').toLowerCase().trim();
+  const matches = q ? brands.filter(b => b.toLowerCase().includes(q)) : brands;
+  if (!matches.length) { dropdown.style.display = 'none'; return; }
+  dropdown.innerHTML = matches.slice(0, 10).map(b => `
+    <div onmousedown="pickBrand('${b.replace(/'/g,"\\'")}')"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      ${b}
+    </div>`).join('');
+  dropdown.style.display = 'block';
+}
+
+function hideBrandSuggestions() {
+  const d = document.getElementById('brand-suggestions');
+  if (d) d.style.display = 'none';
+}
+
+function pickBrand(name) {
+  const el = document.getElementById('pf-brand');
+  if (el) el.value = name;
+  hideBrandSuggestions();
+}
+
 function filterInventoryTable(search) {
   const catFilter = (document.getElementById('inv-cat-filter') || {}).value || '';
   const q = (search || '').toLowerCase();
@@ -132,7 +190,16 @@ function openProductForm(id) {
       <div class="card-title">${p ? 'Edit product' : 'Add new product'}</div>
       <div class="form-grid">
         <div class="form-group"><label>Product name *</label><input id="pf-name" value="${p ? p.name : ''}" placeholder="e.g. Tata Salt"></div>
-        <div class="form-group"><label>Brand</label><input id="pf-brand" value="${p ? p.brand || '' : ''}" placeholder="e.g. Tata, Hindustan Unilever"></div>
+        <div class="form-group">
+          <label>Brand</label>
+          <div style="position:relative">
+            <input id="pf-brand" value="${p ? p.brand || '' : ''}" placeholder="e.g. Tata, Hindustan Unilever" autocomplete="off"
+              oninput="showBrandSuggestions(this.value)"
+              onfocus="showBrandSuggestions(this.value)"
+              onblur="setTimeout(()=>hideBrandSuggestions(),200)">
+            <div id="brand-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:160px;overflow-y:auto"></div>
+          </div>
+        </div>
         <div class="form-group">
           <label>Category</label>
           <select id="pf-cat" onchange="toggleCatOther()">
@@ -230,7 +297,7 @@ function saveProduct() {
   const product = {
     id: editingProductId || uid(),
     name,
-    brand: document.getElementById('pf-brand').value.trim(),
+    brand: normalizeBrand(document.getElementById('pf-brand').value),
     cat,
     weight: weightSel !== 'Other' ? weightSel : '',
     weightOther: weightSel === 'Other' ? weightOther : '',
