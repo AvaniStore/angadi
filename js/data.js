@@ -163,6 +163,32 @@ function deserialize(json) {
   }
 }
 
+// ---- Brand helpers (global, used by inventory.js, reports.js, settings.js) ----
+function getCanonicalBrands() {
+  const groups = {};
+  AppData.products.forEach(p => {
+    const raw = (p.brand || '').replace(/\s+/g, ' ').trim();
+    if (!raw) return;
+    const key = raw.toLowerCase();
+    if (!groups[key]) groups[key] = new Map();
+    groups[key].set(raw, (groups[key].get(raw) || 0) + 1);
+  });
+  return Object.values(groups)
+    .map(forms => {
+      const sorted = [...forms.entries()].sort((a, b) => b[1] - a[1]);
+      const capitalized = sorted.filter(([form]) => /^[A-Z]/.test(form));
+      return (capitalized.length ? capitalized : sorted)[0][0];
+    })
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeBrand(raw) {
+  const cleaned = (raw || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return '';
+  const existing = getCanonicalBrands().find(b => b.toLowerCase() === cleaned.toLowerCase());
+  return existing || cleaned;
+}
+
 // ---- Report helpers ----
 function salesInRange(from, to) {
   return AppData.sales.filter(s => s.date >= from && s.date <= to);
