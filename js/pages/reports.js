@@ -286,21 +286,33 @@ function runProductReport() {
 
   const salesArr = salesInRange(from, to);
 
+  // Build a set of product IDs that currently belong to the selected brand.
+  // This is the key fix: we match by product ID (reliable, never changes) rather
+  // than by the brand text frozen inside old bill line items (which may be stale/inconsistent).
+  const brandProductIds = brand && !productId
+    ? new Set(AppData.products.filter(p => p.brand === brand).map(p => p.id))
+    : null;
+
   // Build a map of pid -> { name, brand, qty, revenue, profit, bills (set) }
   const productMap = {};
   salesArr.forEach(s => {
     (s.items || []).forEach(it => {
       if (!it.pid) return;
       if (productId && it.pid !== productId) return;
-      if (brand && !productId && it.brand !== brand) return;
+      if (brandProductIds && !brandProductIds.has(it.pid)) return;
       const base = (parseFloat(it.price) || 0) * (parseFloat(it.qty) || 0);
       const disc = base * ((parseFloat(it.discount) || 0) / 100);
       const lineRevenue = base - disc;
       const lineCost = (parseFloat(it.cost) || 0) * (parseFloat(it.qty) || 0);
       const lineProfit = lineRevenue - lineCost;
 
+      // Use the current product name/brand for display (not the stale historical snapshot)
+      const currentProduct = AppData.products.find(p => p.id === it.pid);
+      const displayName = currentProduct ? currentProduct.name : it.name;
+      const displayBrand = currentProduct ? currentProduct.brand : it.brand;
+
       if (!productMap[it.pid]) {
-        productMap[it.pid] = { pid: it.pid, name: it.name, brand: it.brand || '', qty: 0, revenue: 0, profit: 0, billIds: new Set() };
+        productMap[it.pid] = { pid: it.pid, name: displayName, brand: displayBrand || '', qty: 0, revenue: 0, profit: 0, billIds: new Set() };
       }
       productMap[it.pid].qty += parseFloat(it.qty) || 0;
       productMap[it.pid].revenue += lineRevenue;
