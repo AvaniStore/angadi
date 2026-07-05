@@ -12,34 +12,6 @@ const WEIGHTS = ['100g', '200g', '250g', '500g', '1kg', '200ml', '250ml', '500ml
 // trimmed of stray whitespace and de-duplicated case-insensitively.
 // When two products use different casing for the "same" brand (e.g. "24 Mantra"
 // vs "24 mantra"), the most frequently used casing wins as the canonical form.
-function getCanonicalBrands() {
-  const groups = {}; // lowercased trimmed key -> Map<raw, count>
-  AppData.products.forEach(p => {
-    const raw = (p.brand || '').replace(/\s+/g, ' ').trim();
-    if (!raw) return;
-    const key = raw.toLowerCase();
-    if (!groups[key]) groups[key] = new Map();
-    groups[key].set(raw, (groups[key].get(raw) || 0) + 1);
-  });
-  return Object.values(groups)
-    .map(forms => {
-      const sorted = [...forms.entries()].sort((a, b) => b[1] - a[1]);
-      const capitalized = sorted.filter(([form]) => /^[A-Z]/.test(form));
-      return (capitalized.length ? capitalized : sorted)[0][0];
-    })
-    .sort((a, b) => a.localeCompare(b));
-}
-
-// Cleans a brand string the same way every time it's saved:
-// collapses extra/odd whitespace, trims ends, and if it matches an
-// existing brand case-insensitively, reuses that brand's canonical casing.
-function normalizeBrand(raw) {
-  const cleaned = (raw || '').replace(/\s+/g, ' ').trim();
-  if (!cleaned) return '';
-  const existing = getCanonicalBrands().find(b => b.toLowerCase() === cleaned.toLowerCase());
-  return existing || cleaned;
-}
-
 function showBrandSuggestions(query) {
   const dropdown = document.getElementById('brand-suggestions');
   if (!dropdown) return;
