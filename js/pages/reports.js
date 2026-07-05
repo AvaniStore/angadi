@@ -232,7 +232,7 @@ function runRangeReport() {
 }
 
 function renderProductReport() {
-  const brands = [...new Set(AppData.products.map(p => p.brand).filter(Boolean))].sort();
+  const brands = getCanonicalBrands();
   const monthStart = new Date(); monthStart.setDate(1);
   const defaultFrom = monthStart.toISOString().slice(0, 10);
 
@@ -269,7 +269,7 @@ function updateProductFilterOptions() {
   const productSel = document.getElementById('pr-product');
   if (!productSel) return;
   const matching = AppData.products
-    .filter(p => !brand || p.brand === brand)
+    .filter(p => !brand || (p.brand || '').toLowerCase() === brand.toLowerCase())
     .sort((a, b) => a.name.localeCompare(b.name));
   productSel.innerHTML = `<option value="">All products${brand ? ' in ' + brand : ''}</option>` +
     matching.map(p => `<option value="${p.id}">${p.name}${p.brand ? ' (' + p.brand + ')' : ''}</option>`).join('');
@@ -287,10 +287,11 @@ function runProductReport() {
   const salesArr = salesInRange(from, to);
 
   // Build a set of product IDs that currently belong to the selected brand.
-  // This is the key fix: we match by product ID (reliable, never changes) rather
-  // than by the brand text frozen inside old bill line items (which may be stale/inconsistent).
+  // Match case-insensitively so "24 Mantra" catches products still saved as "24 mantra".
   const brandProductIds = brand && !productId
-    ? new Set(AppData.products.filter(p => p.brand === brand).map(p => p.id))
+    ? new Set(AppData.products
+        .filter(p => (p.brand || '').toLowerCase() === brand.toLowerCase())
+        .map(p => p.id))
     : null;
 
   // Build a map of pid -> { name, brand, qty, revenue, profit, bills (set) }
