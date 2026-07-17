@@ -420,12 +420,12 @@ function deletePurchaseOrder(id) {
   renderVendors();
 }
 
-function editPurchaseOrder(id) {
+async function editPurchaseOrder(id) {
   const po = AppData.purchases.find(p => p.id === id);
   if (!po) return;
   if (!confirm(`Edit PO ${po.poNumber || po.id}?\n\nStock changes from the original PO will be reversed before re-saving.`)) return;
 
-  // Reverse stock changes from original PO
+  // Reverse stock
   (po.items || []).forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
     if (p) {
@@ -434,24 +434,26 @@ function editPurchaseOrder(id) {
     }
   });
 
-  // Remove old PO from memory AND Supabase
+  // Delete from Supabase and wait for it to complete before proceeding
+  if (typeof deleteRecord === 'function') {
+    await deleteRecord('purchases', id);
+  }
   AppData.purchases = AppData.purchases.filter(p => p.id !== id);
-  if (typeof deleteRecord === 'function') deleteRecord('purchases', id).catch(console.error);
 
-  // Load items - map stored field names (product, costPerUnit) to form field names (name, cost)
+  // Load items mapping stored field names to form field names
   poItems = (po.items || []).map(it => ({
     pid: it.pid,
-    name: it.name || it.product || '',  // stored as 'product' in old POs
+    name: it.name || it.product || '',
     brand: it.brand || '',
     qty: it.qty || 1,
-    cost: it.cost || it.costPerUnit || 0,  // stored as 'costPerUnit' in old POs
+    cost: it.cost || it.costPerUnit || 0,
   }));
   poDraft = { vendorId: po.vendorId || '', billNo: po.billNo || '', date: po.date || today(), payment: po.payment || 'Cash' };
 
-  // Set editing state BEFORE renderVendors so banner appears immediately
+  // Store snapshot for cancel restoration
   window._editingPOId = id;
   window._editingPONumber = po.poNumber;
-  window._cancelPOSnapshot = po; // keep a copy so cancel can fully restore
+  window._cancelPOSnapshot = JSON.parse(JSON.stringify(po)); // deep copy
 
   renderVendors();
 
@@ -462,8 +464,7 @@ function editPurchaseOrder(id) {
   }, 100);
 }
 
-function cancelPOEdit() {
-  // Restore the original PO and its stock changes
+async function cancelPOEdit() {
   const snapshot = window._cancelPOSnapshot;
   if (snapshot) {
     // Restore stock
@@ -474,10 +475,15 @@ function cancelPOEdit() {
         if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
       }
     });
-    // Restore PO to memory and Supabase
-    AppData.purchases.push(snapshot);
-    AppData.purchases.sort((a,b) => (a.date||'').localeCompare(b.date||''));
-    if (typeof saveRecord === 'function') saveRecord('purchases', snapshot).catch(console.error);
+    // Restore PO to Supabase first, then add to memory
+    if (typeof saveRecord === 'function') {
+      await saveRecord('purchases', snapshot);
+    }
+    // Only add to memory if not already there (prevents duplicates)
+    if (!AppData.purchases.find(p => p.id === snapshot.id)) {
+      AppData.purchases.push(snapshot);
+      AppData.purchases.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    }
   }
   window._editingPOId = null;
   window._editingPONumber = null;
