@@ -428,47 +428,58 @@ function editPurchaseOrder(id) {
   // Reverse stock changes from original PO
   (po.items || []).forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
-    if (p) p.stock -= it.qty;
+    if (p) {
+      p.stock -= it.qty;
+      if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+    }
   });
 
-  // Remove old PO
+  // Remove old PO from memory AND Supabase
   AppData.purchases = AppData.purchases.filter(p => p.id !== id);
+  if (typeof deleteRecord === 'function') deleteRecord('purchases', id).catch(console.error);
 
-  // Load PO items into the form
+  // Load items and header into draft state
   poItems = (po.items || []).map(it => ({ ...it }));
   poDraft = { vendorId: po.vendorId || '', billNo: po.billNo || '', date: po.date || today(), payment: po.payment || 'Cash' };
 
+  // Set editing state BEFORE renderVendors so banner appears immediately
+  window._editingPOId = id;
+  window._editingPONumber = po.poNumber;
+  window._cancelPOSnapshot = po; // keep a copy so cancel can fully restore
+
   renderVendors();
 
-  // Store original PO info and show edit banner
   setTimeout(() => {
-    window._editingPOId = id;
-    window._editingPONumber = po.poNumber;
-
-    // Show amber editing banner above the PO form
-    const poSection = document.getElementById('po-rows')?.closest('.card');
-    let banner = document.getElementById('po-edit-banner');
-    if (poSection && !banner) {
-      banner = document.createElement('div');
-      banner.id = 'po-edit-banner';
-      banner.style.cssText = 'background:#fef3c7;border:1px solid #d97706;border-radius:var(--radius);padding:8px 14px;margin-bottom:10px;font-size:13px;color:#92400e;display:flex;justify-content:space-between;align-items:center;gap:10px';
-      banner.innerHTML = `<span>✏️ Editing <strong>${po.poNumber || po.id}</strong> — original date &amp; PO number preserved. Only fix errors.</span>
-        <button class="btn btn-xs" onclick="cancelPOEdit()" style="color:#92400e;border-color:#d97706;white-space:nowrap">✕ Cancel</button>`;
-      poSection.insertAdjacentElement('beforebegin', banner);
-    }
-
-    banner?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const banner = document.getElementById('po-edit-banner');
+    if (banner) banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
     showToast(`Editing PO ${po.poNumber || po.id} — fix errors and confirm`);
-  }, 150);
+  }, 100);
 }
 
 function cancelPOEdit() {
+  // Restore the original PO and its stock changes
+  const snapshot = window._cancelPOSnapshot;
+  if (snapshot) {
+    // Restore stock
+    (snapshot.items || []).forEach(it => {
+      const p = AppData.products.find(x => x.id === it.pid);
+      if (p) {
+        p.stock += it.qty;
+        if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
+      }
+    });
+    // Restore PO to memory and Supabase
+    AppData.purchases.push(snapshot);
+    AppData.purchases.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+    if (typeof saveRecord === 'function') saveRecord('purchases', snapshot).catch(console.error);
+  }
   window._editingPOId = null;
   window._editingPONumber = null;
+  window._cancelPOSnapshot = null;
   poItems = [{ pid: '', name: '', brand: '', qty: 1, cost: 0 }];
   poDraft = { vendorId: '', billNo: '', date: '', payment: 'Cash' };
   renderVendors();
-  showToast('Edit cancelled');
+  showToast('Edit cancelled — original PO restored');
 }
 
 function viewPurchaseBill(id) {
