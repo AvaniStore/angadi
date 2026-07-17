@@ -438,8 +438,14 @@ function editPurchaseOrder(id) {
   AppData.purchases = AppData.purchases.filter(p => p.id !== id);
   if (typeof deleteRecord === 'function') deleteRecord('purchases', id).catch(console.error);
 
-  // Load items and header into draft state
-  poItems = (po.items || []).map(it => ({ ...it }));
+  // Load items - map stored field names (product, costPerUnit) to form field names (name, cost)
+  poItems = (po.items || []).map(it => ({
+    pid: it.pid,
+    name: it.name || it.product || '',  // stored as 'product' in old POs
+    brand: it.brand || '',
+    qty: it.qty || 1,
+    cost: it.cost || it.costPerUnit || 0,  // stored as 'costPerUnit' in old POs
+  }));
   poDraft = { vendorId: po.vendorId || '', billNo: po.billNo || '', date: po.date || today(), payment: po.payment || 'Cash' };
 
   // Set editing state BEFORE renderVendors so banner appears immediately
