@@ -130,12 +130,39 @@ function renderInventory() {
     </tr>`;
   }).join('');
 
+  // Inventory valuation — calculated across ALL products (not just filtered view)
+  const inStockProducts = AppData.products.filter(p => p.stock > 0);
+  const outOfStockCount = AppData.products.filter(p => p.stock <= 0).length;
+  const costValue = inStockProducts.reduce((a, p) => a + (p.cost || 0) * (p.stock || 0), 0);
+  const sellValue = inStockProducts.reduce((a, p) => a + (p.sell || 0) * (p.stock || 0), 0);
+  const potentialProfit = sellValue - costValue;
+
   document.getElementById('page-inventory').innerHTML = `
     <div class="page-header">
       <h2 class="page-title">Inventory</h2>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" onclick="openProductForm(null)">+ Add product</button>
         <button class="btn" onclick="openVegPriceUpdate()" title="Update vegetable & fruit prices">🥦 Update veg & fruit prices</button>
+      </div>
+    </div>
+
+    <!-- Inventory valuation summary -->
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="metric-card" style="flex:1;min-width:140px">
+        <div class="metric-label">Stock value at cost</div>
+        <div class="metric-value" style="font-size:18px">${fmt(costValue)}</div>
+      </div>
+      <div class="metric-card" style="flex:1;min-width:140px">
+        <div class="metric-label">Stock value at sell price</div>
+        <div class="metric-value" style="font-size:18px">${fmt(sellValue)}</div>
+      </div>
+      <div class="metric-card" style="flex:1;min-width:140px">
+        <div class="metric-label">Potential profit</div>
+        <div class="metric-value green" style="font-size:18px">${fmt(potentialProfit)}</div>
+      </div>
+      <div class="metric-card" style="flex:1;min-width:120px">
+        <div class="metric-label">In stock / Out of stock</div>
+        <div class="metric-value" style="font-size:18px">${inStockProducts.length} <span style="font-size:13px;color:var(--red)">/ ${outOfStockCount}</span></div>
       </div>
     </div>
 
