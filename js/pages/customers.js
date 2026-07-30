@@ -145,12 +145,18 @@ function viewCustomerBills(nameOrEl) {
 }
 
 function filterCustomerRows(query) {
-  const q = (query || '').toLowerCase();
+  const q = (query || '').toLowerCase().trim();
   const tbody = document.querySelector('#page-customers .table-wrap tbody');
   if (!tbody) return;
   tbody.querySelectorAll('tr').forEach(row => {
-    const name = (row.querySelector('td:nth-child(1)')?.textContent || '').toLowerCase();
-    const phone = (row.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
-    row.style.display = !q || name.includes(q) || phone.includes(q) ? '' : 'none';
+    // Always reset to visible first
+    row.style.display = '';
+    if (q) {
+      const name = (row.querySelector('td:nth-child(1)')?.textContent || '').toLowerCase();
+      const phone = (row.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
+      if (!name.includes(q) && !phone.includes(q)) {
+        row.style.display = 'none';
+      }
+    }
   });
 }
