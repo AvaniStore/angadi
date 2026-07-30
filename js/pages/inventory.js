@@ -130,12 +130,20 @@ function renderInventory() {
     </tr>`;
   }).join('');
 
-  // Inventory valuation — calculated across ALL products (not just filtered view)
-  const inStockProducts = AppData.products.filter(p => p.stock > 0);
-  const outOfStockCount = AppData.products.filter(p => p.stock <= 0).length;
+  // Inventory valuation — reflects current brand/category filter
+  const valuationProducts = (catFilter || brandFilter)
+    ? AppData.products.filter(p => {
+        const matchCat = !catFilter || p.cat === catFilter;
+        const matchBrand = !brandFilter || (p.brand||'').toLowerCase() === brandFilter.toLowerCase();
+        return matchCat && matchBrand;
+      })
+    : AppData.products;
+  const inStockProducts = valuationProducts.filter(p => p.stock > 0);
+  const outOfStockCount = valuationProducts.filter(p => p.stock <= 0).length;
   const costValue = inStockProducts.reduce((a, p) => a + (p.cost || 0) * (p.stock || 0), 0);
   const sellValue = inStockProducts.reduce((a, p) => a + (p.sell || 0) * (p.stock || 0), 0);
   const potentialProfit = sellValue - costValue;
+  const valuationLabel = brandFilter ? `Brand: ${brandFilter}` : catFilter ? `Category: ${catFilter}` : 'All inventory';
 
   document.getElementById('page-inventory').innerHTML = `
     <div class="page-header">
@@ -147,13 +155,16 @@ function renderInventory() {
     </div>
 
     <!-- Inventory valuation summary -->
+    <div style="font-size:11px;color:var(--text3);font-weight:600;letter-spacing:0.5px;margin-bottom:6px">
+      STOCK VALUATION — ${valuationLabel.toUpperCase()}
+    </div>
     <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
       <div class="metric-card" style="flex:1;min-width:140px">
-        <div class="metric-label">Stock value at cost</div>
+        <div class="metric-label">Value at cost</div>
         <div class="metric-value" style="font-size:18px">${fmt(costValue)}</div>
       </div>
       <div class="metric-card" style="flex:1;min-width:140px">
-        <div class="metric-label">Stock value at sell price</div>
+        <div class="metric-label">Value at sell price</div>
         <div class="metric-value" style="font-size:18px">${fmt(sellValue)}</div>
       </div>
       <div class="metric-card" style="flex:1;min-width:140px">
