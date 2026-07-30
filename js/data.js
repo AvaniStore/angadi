@@ -75,10 +75,11 @@ function fmtNum(n) {
 
 // ---- Stock helpers ----
 function stockBadge(p) {
-  if (p.stock < 0) return `<span class="badge badge-out">${p.stock} (oversold)</span>`;
-  if (p.stock === 0) return `<span class="badge badge-out">Out of stock</span>`;
-  if (p.stock <= p.lowAt) return `<span class="badge badge-low">${p.stock} left</span>`;
-  return `<span class="badge badge-ok">${p.stock}</span>`;
+  // Show plain number — colour-code for quick scanning but no text labels
+  // Out-of-stock alerts are shown on the Dashboard instead
+  if (p.stock <= 0) return `<span style="color:var(--red);font-weight:600">${p.stock}</span>`;
+  if (p.stock <= p.lowAt) return `<span style="color:var(--amber);font-weight:600">${p.stock}</span>`;
+  return `<span>${p.stock}</span>`;
 }
 
 function expiryTag(expiry) {
