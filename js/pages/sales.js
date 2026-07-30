@@ -131,6 +131,7 @@ function renderSales() {
         <button onclick="salesSortDir=salesSortDir==='desc'?'asc':'desc';renderSales()" class="btn btn-sm">
           ${salesSortDir === 'desc' ? '↓ Newest first' : '↑ Oldest first'}
         </button>
+        <button onclick="exportSalesToExcel()" class="btn btn-sm" title="Export to Excel">📥 Export Excel</button>
         <div style="font-size:13px;color:var(--text2)">
           ${filtered.length} bills &nbsp;·&nbsp; ${fmt(totalRev)} &nbsp;·&nbsp;
           <span style="color:var(--accent-dark)">${fmt(totalProfit)} profit</span>
@@ -509,4 +510,74 @@ function viewSale(id) {
     </div>
   `;
   document.getElementById('sale-detail').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ---- Excel export for Sales History ----
+function exportSalesToExcel() {
+  if (typeof XLSX === 'undefined') { showToast('Excel library not loaded — try refreshing'); return; }
+  const filtered = getFilteredSales();
+  if (!filtered.length) { showToast('No bills to export'); return; }
+
+  // Sheet 1: Bill summary
+  const summaryData = [
+    ['Bill #', 'Date', 'Customer', 'Phone', 'Payment', 'Items', 'Subtotal', 'Item Disc', 'Bill Disc', 'Delivery', 'GST', 'Total', 'Profit']
+  ];
+  filtered.forEach(s => {
+    summaryData.push([
+      s.id, fmtDate(s.date), s.customer || 'Walk-in', s.phone || '',
+      s.payment || 'Cash', (s.items||[]).length,
+      s.sub || 0, s.itemDisc || 0, s.billDisc || 0,
+      s.delivery || 0, s.gst || 0, s.total || 0, s.profit || 0
+    ]);
+  });
+  // Totals row
+  const n = filtered.length;
+  summaryData.push([
+    'TOTAL', '', '', '', '', '',
+    filtered.reduce((a,s) => a+(s.sub||0), 0),
+    filtered.reduce((a,s) => a+(s.itemDisc||0), 0),
+    filtered.reduce((a,s) => a+(s.billDisc||0), 0),
+    filtered.reduce((a,s) => a+(s.delivery||0), 0),
+    filtered.reduce((a,s) => a+(s.gst||0), 0),
+    filtered.reduce((a,s) => a+(s.total||0), 0),
+    filtered.reduce((a,s) => a+(s.profit||0), 0),
+  ]);
+
+  // Sheet 2: Item-level detail (each line item as a row)
+  const itemData = [
+    ['Bill #', 'Date', 'Customer', 'Payment', 'Product', 'Brand', 'Qty', 'Price', 'Disc%', 'Line Total', 'Cost', 'Line Profit']
+  ];
+  filtered.forEach(s => {
+    (s.items || []).forEach(it => {
+      const base = (it.price||0) * (it.qty||0);
+      const disc = base * ((it.discount||0)/100);
+      const lineTotal = base - disc;
+      const lineCost = (it.cost||0) * (it.qty||0);
+      itemData.push([
+        s.id, fmtDate(s.date), s.customer || 'Walk-in', s.payment || 'Cash',
+        it.name || '', it.brand || '', it.qty || 0,
+        it.price || 0, it.discount || 0, lineTotal, it.cost || 0, lineTotal - lineCost
+      ]);
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+  const ws2 = XLSX.utils.aoa_to_sheet(itemData);
+
+  // Column widths
+  ws1['!cols'] = [12,12,20,14,10,8,12,12,12,12,10,12,12].map(w => ({ wch: w }));
+  ws2['!cols'] = [12,12,20,10,25,15,8,10,8,12,10,12].map(w => ({ wch: w }));
+
+  XLSX.utils.book_append_sheet(wb, ws1, 'Bill Summary');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Item Detail');
+
+  // Filename based on active filter
+  const filterLabel = salesFilter === 'today' ? 'Today' :
+    salesFilter === 'week' ? 'LastWeek' :
+    salesFilter === 'month' ? 'ThisMonth' :
+    salesFilter === 'custom' ? `${salesCustomFrom}_to_${salesCustomTo}` : 'AllTime';
+  const filename = `Avani_Sales_${filterLabel}_${today()}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  showToast(`Exported ${filtered.length} bills to ${filename} ✓`);
 }
