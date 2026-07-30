@@ -39,6 +39,11 @@ function renderCustomers() {
       </td>
     </tr>`).join('') || `<tr><td colspan="6"><div class="empty-state"><p>No customers yet. They get added automatically when you save a bill with a customer name.</p></div></td></tr>`;
 
+  // Walk-in summary
+  const walkInBills = AppData.sales.filter(s => !s.customer || s.customer === 'Walk-in' || s.customer === 'Walk In');
+  const walkInRevenue = walkInBills.reduce((a,s) => a+(s.total||0), 0);
+  const walkInLast = walkInBills.length ? walkInBills.sort((a,b) => b.date.localeCompare(a.date))[0].date : null;
+
   document.getElementById('page-customers').innerHTML = `
     <div class="page-header">
       <h2 class="page-title">Customers</h2>
@@ -47,9 +52,34 @@ function renderCustomers() {
 
     <div id="customer-form-container"></div>
 
+    <!-- Walk-in summary -->
+    ${walkInBills.length ? `
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="font-size:22px">🚶</div>
+      <div>
+        <div style="font-weight:600;font-size:14px">Walk-in customers</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">No name recorded at time of sale</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:20px;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:700">${walkInBills.length}</div>
+          <div style="font-size:11px;color:var(--text3)">bills</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:18px;font-weight:700">${fmt(walkInRevenue)}</div>
+          <div style="font-size:11px;color:var(--text3)">total spent</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:14px;font-weight:600">${walkInLast ? fmtDate(walkInLast) : '—'}</div>
+          <div style="font-size:11px;color:var(--text3)">last visit</div>
+        </div>
+        <button class="btn btn-sm" onclick="viewCustomerBills('Walk-in')">View bills</button>
+      </div>
+    </div>` : ''}
+
     <div style="margin-bottom:12px">
-      <input id="cust-search" type="text" placeholder="Search by name or phone..."
-        oninput="renderCustomers()"
+      <input id="cust-search" type="text" placeholder="Search by name or phone..." value="${search}"
+        oninput="renderCustomers()" onkeydown="event.stopPropagation()"
         style="width:100%;max-width:300px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
     </div>
 
