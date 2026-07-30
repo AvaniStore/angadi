@@ -79,7 +79,7 @@ function renderCustomers() {
 
     <div style="margin-bottom:12px">
       <input id="cust-search" type="text" placeholder="Search by name or phone..." value="${search}"
-        oninput="renderCustomers()" onkeydown="event.stopPropagation()"
+        oninput="salesCustomerFilter=this.value;filterCustomerRows(this.value)" onkeydown="event.stopPropagation()"
         style="width:100%;max-width:300px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
     </div>
 
@@ -142,4 +142,15 @@ function viewCustomerBills(nameOrEl) {
   const name = typeof nameOrEl === 'string' ? nameOrEl : nameOrEl.dataset?.name || nameOrEl;
   salesCustomerFilter = name;
   showPage('sales', document.querySelector('[data-page="sales"]'));
+}
+
+function filterCustomerRows(query) {
+  const q = (query || '').toLowerCase();
+  const tbody = document.querySelector('#page-customers .table-wrap tbody');
+  if (!tbody) return;
+  tbody.querySelectorAll('tr').forEach(row => {
+    const name = (row.querySelector('td:nth-child(1)')?.textContent || '').toLowerCase();
+    const phone = (row.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
+    row.style.display = !q || name.includes(q) || phone.includes(q) ? '' : 'none';
+  });
 }
