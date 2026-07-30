@@ -56,18 +56,20 @@ function setSalesPaymentFilter(p) {
 }
 
 function filterSalesRows(query) {
-  const q = (query || '').toLowerCase();
+  const q = (query || '').toLowerCase().trim();
+  if (!q) salesCustomerFilter = '';
   const tbody = document.querySelector('#page-sales .table-wrap tbody');
   if (!tbody) return;
-  const rows = tbody.querySelectorAll('tr');
-  let visible = 0;
-  rows.forEach(row => {
-    const customerCell = row.querySelector('td:nth-child(3)');
-    if (!customerCell) return;
-    const name = customerCell.textContent.toLowerCase();
-    const show = !q || name.includes(q);
-    row.style.display = show ? '' : 'none';
-    if (show) visible++;
+  tbody.querySelectorAll('tr').forEach(row => {
+    // Always reset to visible first, then hide if no match
+    row.style.display = '';
+    if (q) {
+      const customerCell = row.querySelector('td:nth-child(3)');
+      if (!customerCell) return;
+      if (!customerCell.textContent.toLowerCase().includes(q)) {
+        row.style.display = 'none';
+      }
+    }
   });
 }
 
@@ -159,7 +161,7 @@ function renderSales() {
     <!-- Customer search -->
     <div style="margin-bottom:14px">
       <input type="text" placeholder="🔍 Search by customer name..." value="${salesCustomerFilter}"
-        oninput="salesCustomerFilter=this.value;filterSalesRows(this.value)" onkeydown="event.stopPropagation()"
+        id="cust-search-sales" oninput="salesCustomerFilter=this.value;filterSalesRows(this.value)" onkeydown="event.stopPropagation()"
         style="width:100%;max-width:320px;padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
     </div>
 
@@ -214,6 +216,12 @@ function renderSales() {
       </table>
     </div>` : ''}
   `;
+  // Re-apply customer search filter if one was active (survives date/payment filter changes)
+  if (salesCustomerFilter) {
+    filterSalesRows(salesCustomerFilter);
+    const el = document.getElementById('cust-search-sales');
+    if (el) el.value = salesCustomerFilter;
+  }
 }
 
 // ---- Return flow ----
