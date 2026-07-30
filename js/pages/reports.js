@@ -353,6 +353,9 @@ function runProductReport() {
       <div class="metric-card"><div class="metric-label">Profit</div><div class="metric-value green">${fmt(totalProfit)}</div></div>
       <div class="metric-card"><div class="metric-label">Bills containing these items</div><div class="metric-value">${totalBills}</div></div>
     </div>
+    <div style="margin-bottom:10px;text-align:right">
+      <button class="btn btn-sm" onclick="exportProductReportToExcel()">📥 Export Excel</button>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Product</th><th>Qty sold</th><th>Bills</th><th>Revenue</th><th>Profit</th><th>Current stock</th></tr></thead>
@@ -360,4 +363,44 @@ function runProductReport() {
       </table>
     </div>
   `;
+  // Store last report data for export
+  window._lastProductReport = { label, from, to, rows };
+}
+
+// ---- Excel export for By Product report ----
+function exportProductReportToExcel() {
+  if (typeof XLSX === 'undefined') { showToast('Excel library not loaded — try refreshing'); return; }
+  const report = window._lastProductReport;
+  if (!report || !report.rows || !report.rows.length) { showToast('Run a report first'); return; }
+
+  const data = [
+    [`${report.label} — ${fmtDate(report.from)} to ${fmtDate(report.to)}`],
+    [],
+    ['Product', 'Brand', 'Qty Sold', 'Bills', 'Revenue (₹)', 'Profit (₹)', 'Current Stock']
+  ];
+  report.rows.forEach(r => {
+    const product = AppData.products.find(p => p.id === r.pid);
+    data.push([
+      r.name, r.brand, r.qty, r.billIds.size,
+      Math.round(r.revenue * 100) / 100,
+      Math.round(r.profit * 100) / 100,
+      product ? product.stock : '—'
+    ]);
+  });
+  // Totals
+  data.push([
+    'TOTAL', '', 
+    report.rows.reduce((a,r) => a + r.qty, 0), '',
+    Math.round(report.rows.reduce((a,r) => a + r.revenue, 0) * 100) / 100,
+    Math.round(report.rows.reduce((a,r) => a + r.profit, 0) * 100) / 100, ''
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [28, 18, 10, 8, 14, 14, 14].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Product Sales');
+
+  const filename = `Avani_ProductSales_${report.from}_to_${report.to}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  showToast(`Exported to ${filename} ✓`);
 }
