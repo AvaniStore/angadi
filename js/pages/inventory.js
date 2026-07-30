@@ -180,8 +180,18 @@ function renderInventory() {
     <div id="product-form-container"></div>
 
     <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <input id="inv-search" type="text" placeholder="Search by name, brand, category..." style="flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)" oninput="filterInventoryTable(this.value)" value="${search}">
-      <select id="inv-brand-filter" onchange="filterInventoryTable(document.getElementById('inv-search').value)" style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
+      <div style="position:relative;flex:1;min-width:180px">
+        <input id="inv-search" type="text" placeholder="Search by name, brand, category..." autocomplete="off"
+          style="width:100%;padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)"
+          oninput="filterInventoryTable(this.value);showInventorySuggestions(this.value)"
+          onfocus="showInventorySuggestions(this.value)"
+          onblur="setTimeout(()=>hideInventorySuggestions(),200)"
+          onkeydown="event.stopPropagation()"
+          value="${search}">
+        <div id="inv-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto"></div>
+      </div>
+      <button class="btn btn-sm" onclick="exportInventoryToExcel()" title="Export inventory to Excel">📥 Export</button>
+      <select id="inv-brand-filter" onchange="renderInventory()" style="padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
         <option value="">All brands</option>
         ${getCanonicalBrands().map(b => `<option value="${b}" ${brandFilter===b?'selected':''}>${b}</option>`).join('')}
       </select>
@@ -578,4 +588,104 @@ function saveStockAdjust(pid) {
   showToast(`Stock adjusted: ${p.name} → ${p.stock} units ✓`);
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
+}
+
+// ---- Inventory search autocomplete ----
+function showInventorySuggestions(query) {
+  const dropdown = document.getElementById('inv-suggestions');
+  if (!dropdown) return;
+  if (!query || query.length < 2) { dropdown.style.display = 'none'; return; }
+  const q = query.toLowerCase();
+  const catFilter = document.getElementById('inv-cat-filter')?.value || '';
+  const brandFilter = document.getElementById('inv-brand-filter')?.value || '';
+
+  // Collect matching names and brands from products (respecting current filters)
+  const suggestions = new Map();
+  AppData.products
+    .filter(p => (!catFilter || p.cat === catFilter) && (!brandFilter || (p.brand||'').toLowerCase() === brandFilter.toLowerCase()))
+    .forEach(p => {
+      if (p.name.toLowerCase().includes(q)) suggestions.set(p.name, 'product');
+      if (p.brand && p.brand.toLowerCase().includes(q)) suggestions.set(p.brand, 'brand');
+    });
+
+  const items = [...suggestions.entries()].slice(0, 10);
+  if (!items.length) { dropdown.style.display = 'none'; return; }
+
+  dropdown.innerHTML = items.map(([text, type]) => `
+    <div onmousedown="pickInventorySuggestion('${text.replace(/'/g,"\\'")}');"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <span>${text}</span>
+      <span style="font-size:10px;color:var(--text3);text-transform:uppercase">${type}</span>
+    </div>`).join('');
+  dropdown.style.display = 'block';
+}
+
+function hideInventorySuggestions() {
+  const d = document.getElementById('inv-suggestions');
+  if (d) d.style.display = 'none';
+}
+
+function pickInventorySuggestion(text) {
+  const el = document.getElementById('inv-search');
+  if (el) el.value = text;
+  hideInventorySuggestions();
+  filterInventoryTable(text);
+}
+
+// ---- Inventory Excel export ----
+function exportInventoryToExcel() {
+  if (typeof XLSX === 'undefined') { showToast('Excel library not loaded — try refreshing'); return; }
+  const catFilter = document.getElementById('inv-cat-filter')?.value || '';
+  const brandFilter = document.getElementById('inv-brand-filter')?.value || '';
+  const search = document.getElementById('inv-search')?.value || '';
+
+  const filtered = AppData.products.filter(p => {
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.brand||'').toLowerCase().includes(search.toLowerCase()) ||
+      (p.cat||'').toLowerCase().includes(search.toLowerCase());
+    const matchCat = !catFilter || p.cat === catFilter;
+    const matchBrand = !brandFilter || (p.brand||'').toLowerCase() === brandFilter.toLowerCase();
+    return matchSearch && matchCat && matchBrand;
+  });
+
+  if (!filtered.length) { showToast('No products to export'); return; }
+
+  const labelParts = [];
+  if (brandFilter) labelParts.push(brandFilter);
+  if (catFilter) labelParts.push(catFilter);
+  if (search) labelParts.push(search);
+  const label = labelParts.length ? labelParts.join('_') : 'All';
+
+  const data = [
+    ['Product', 'Brand', 'Category', 'Weight', 'Cost (₹)', 'MRP (₹)', 'Sell (₹)', 'GST%', 'Stock', 'Low Alert At', 'Stock Value (Cost)', 'Stock Value (Sell)', 'Margin%']
+  ];
+  filtered.forEach(p => {
+    const margin = p.sell > 0 ? Math.round(((p.sell - p.cost) / p.sell) * 100) : 0;
+    data.push([
+      p.name, p.brand || '', p.cat || '', p.weightOther || p.weight || '',
+      p.cost || 0, p.mrp || 0, p.sell || 0, p.gst || 0,
+      p.stock || 0, p.lowAt || 0,
+      Math.round((p.cost||0) * (p.stock||0) * 100) / 100,
+      Math.round((p.sell||0) * (p.stock||0) * 100) / 100,
+      margin
+    ]);
+  });
+  // Totals row
+  data.push([
+    'TOTAL', '', '', '', '', '', '', '',
+    filtered.reduce((a,p) => a+(p.stock||0), 0), '',
+    Math.round(filtered.reduce((a,p) => a+(p.cost||0)*(p.stock||0), 0)*100)/100,
+    Math.round(filtered.reduce((a,p) => a+(p.sell||0)*(p.stock||0), 0)*100)/100,
+    ''
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [28,18,12,10,10,10,10,8,8,10,16,16,10].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+
+  const filename = `Avani_Inventory_${label}_${today()}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  showToast(`Exported ${filtered.length} products ✓`);
 }
