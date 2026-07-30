@@ -159,7 +159,7 @@ function renderSales() {
     <!-- Customer search -->
     <div style="margin-bottom:14px">
       <input type="text" placeholder="🔍 Search by customer name..." value="${salesCustomerFilter}"
-        oninput="salesCustomerFilter=this.value;renderSales()" onkeydown="event.stopPropagation()"
+        oninput="salesCustomerFilter=this.value;filterSalesRows(this.value)" onkeydown="event.stopPropagation()"
         style="width:100%;max-width:320px;padding:7px 12px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
     </div>
 
