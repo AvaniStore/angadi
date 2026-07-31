@@ -5,6 +5,26 @@
 function renderCustomers() {
   if (!AppData.customers) AppData.customers = [];
 
+  // Deduplicate by name (case-insensitive) — merge bill counts if duplicates exist
+  const seen = new Map();
+  AppData.customers.forEach(c => {
+    const key = c.name.toLowerCase().trim();
+    if (seen.has(key)) {
+      // Keep the one with more bills, merge data
+      const existing = seen.get(key);
+      if ((c.billCount || 0) > (existing.billCount || 0)) {
+        existing.billCount = c.billCount;
+        existing.totalSpent = c.totalSpent;
+        existing.lastBill = c.lastBill;
+      }
+      // Delete the duplicate from Supabase silently
+      if (typeof deleteRecord === 'function') deleteRecord('customers', c.id).catch(()=>{});
+    } else {
+      seen.set(key, c);
+    }
+  });
+  AppData.customers = [...seen.values()];
+
   // Update bill counts and remove customers with no bills
   AppData.customers.forEach(c => {
     const bills = AppData.sales.filter(s => s.customer && s.customer.toLowerCase() === c.name.toLowerCase());
