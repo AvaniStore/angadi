@@ -35,7 +35,7 @@ function renderCustomers() {
 
   // Remove customers that were auto-added from bills but now have no bills
   // (keeps manually added customers even with 0 bills)
-  AppData.customers = AppData.customers.filter(c => c.billCount > 0 || c.manuallyAdded || true);
+  AppData.customers = AppData.customers.filter(c => c.billCount >= 0 || c.manuallyAdded);
   AppData.customers.sort((a,b) => a.name.localeCompare(b.name));
 
   const search = (document.getElementById('cust-search') || {}).value || '';
