@@ -77,9 +77,9 @@ function fmtNum(n) {
 function stockBadge(p) {
   // Show plain number — colour-code for quick scanning but no text labels
   // Out-of-stock alerts are shown on the Dashboard instead
-  if (p.stock <= 0) return `<span style="color:var(--red);font-weight:600">${p.stock}</span>`;
-  if (p.stock <= p.lowAt) return `<span style="color:var(--amber);font-weight:600">${p.stock}</span>`;
-  return `<span>${p.stock}</span>`;
+  if (p.stock <= 0) return `<span style="color:var(--red);font-weight:600">${parseFloat(p.stock.toFixed(2))}</span>`;
+if (p.stock <= p.lowAt) return `<span style="color:var(--amber);font-weight:600">${parseFloat(p.stock.toFixed(2))}</span>`;
+return `<span>${parseFloat(p.stock.toFixed(2))}</span>`;
 }
 
 function expiryTag(expiry) {
