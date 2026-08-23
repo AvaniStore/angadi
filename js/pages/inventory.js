@@ -463,7 +463,7 @@ function saveVegPrices() {
     const stockEl = document.getElementById(`vp-stock-${v.id}`);
     if (costEl) v.cost = parseFloat(costEl.value) || 0;
     if (sellEl) v.sell = parseFloat(sellEl.value) || 0;
-    if (stockEl) v.stock = parseFloat(stockEl.value) || 0;
+   if (stockEl) v.stock = Math.round((parseFloat(stockEl.value) || 0) * 1000) / 1000;
     // Save each updated product to Supabase
     autoSave('products', v);
   });
