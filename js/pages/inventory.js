@@ -569,7 +569,7 @@ function saveStockAdjust(pid) {
   const change = type === 'remove' ? -qty : qty;
   const loss = type === 'remove' ? qty * p.cost : 0;
 
-  p.stock += change;
+  p.stock = Math.round((p.stock + change) * 1000) / 1000;
   // Save updated stock to Supabase immediately
   if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
 
