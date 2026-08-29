@@ -135,6 +135,12 @@ async function loadFromSupabase() {
     }
 
     AppData.products = (products||[]).map(r => fromRow('products', r)).sort((a,b) => a.name.localeCompare(b.name));
+    // Preserve in-memory stock for products modified in last 30 seconds
+    const now = Date.now();
+    AppData.products.forEach(p => {
+    const mem = window._recentStockChanges && window._recentStockChanges[p.id];
+    if (mem && (now - mem.time) < 30000) p.stock = mem.stock;
+  });
     AppData.vendors = (vendors||[]).map(r => fromRow('vendors', r));
     AppData.customers = (customers||[]).map(r => fromRow('customers', r));
     AppData.sales = (sales||[]).map(r => fromRow('sales', r));
