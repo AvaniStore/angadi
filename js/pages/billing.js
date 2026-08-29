@@ -408,6 +408,8 @@ function saveBill() {
     const p = AppData.products.find(x => x.id === it.pid);
     if (p) {
       p.stock -= it.qty;
+      if (!window._recentStockChanges) window._recentStockChanges = {};
+      window._recentStockChanges[p.id] = { stock: p.stock, time: Date.now() };
       // Save updated stock to Supabase immediately
       if (typeof saveRecord === 'function') saveRecord('products', p).catch(console.error);
     }
