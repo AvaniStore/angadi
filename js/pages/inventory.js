@@ -467,8 +467,9 @@ if (sellEl) v.sell = parseFloat(sellEl.value) || 0;
 if (stockEl) v.stock = Math.round((parseFloat(stockEl.value) || 0) * 1000) / 1000;
 // Only save if something actually changed
 if (v.cost !== oldCost || v.sell !== oldSell || v.stock !== oldStock) {
-  autoSave('products', v);
-}
+   autoSave('products', v);
+    }
+  });
   showToast('Prices and stock updated ✓');
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
