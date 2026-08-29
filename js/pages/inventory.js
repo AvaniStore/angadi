@@ -461,12 +461,14 @@ function saveVegPrices() {
     const costEl = document.getElementById(`vp-cost-${v.id}`);
     const sellEl = document.getElementById(`vp-sell-${v.id}`);
     const stockEl = document.getElementById(`vp-stock-${v.id}`);
-    if (costEl) v.cost = parseFloat(costEl.value) || 0;
-    if (sellEl) v.sell = parseFloat(sellEl.value) || 0;
-   if (stockEl) v.stock = Math.round((parseFloat(stockEl.value) || 0) * 1000) / 1000;
-    // Save each updated product to Supabase
-    autoSave('products', v);
-  });
+   const oldCost = v.cost, oldSell = v.sell, oldStock = v.stock;
+if (costEl) v.cost = parseFloat(costEl.value) || 0;
+if (sellEl) v.sell = parseFloat(sellEl.value) || 0;
+if (stockEl) v.stock = Math.round((parseFloat(stockEl.value) || 0) * 1000) / 1000;
+// Only save if something actually changed
+if (v.cost !== oldCost || v.sell !== oldSell || v.stock !== oldStock) {
+  autoSave('products', v);
+}
   showToast('Prices and stock updated ✓');
   document.getElementById('product-form-container').innerHTML = '';
   renderInventory();
