@@ -361,7 +361,7 @@ function saveBill() {
   valid.forEach(it => {
     const p = AppData.products.find(x => x.id === it.pid);
     if (p) {
-      if (p) p.stock = Math.round((p.stock - it.qty) * 1000) / 1000; stockWarnings.push(`${p.name} (stock: ${p.stock}, billing: ${it.qty})`);
+     if (p && p.stock < it.qty) stockWarnings.push(`${p.name} (stock: ${p.stock}, billing: ${it.qty})`);
       it.cost = p.cost || 0;
       if (!p.cost || p.cost === 0) zeroCostItems.push(p.name);
     }
