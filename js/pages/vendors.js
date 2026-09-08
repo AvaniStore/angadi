@@ -34,7 +34,7 @@ function renderVendors() {
       </div>
     </details>` : '<div class="empty-state"><p>No vendors added yet.</p></div>';
 
-  const poRows = AppData.purchases.slice().reverse().slice(0, 20).map(po => `
+  const poRows = AppData.purchases.slice().reverse().map(po => `
     <tr>
       <td style="font-size:12px;color:var(--text3)">${po.poNumber || '—'}</td>
       <td style="font-size:12px;color:var(--text3)">${fmtDate(po.date)}</td>
