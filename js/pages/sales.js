@@ -16,10 +16,10 @@ function getFilteredSales() {
     from = to = todayStr;
   } else if (salesFilter === 'week') {
     const d = new Date(); d.setDate(d.getDate() - 6);
-    from = d.toISOString().slice(0,10); to = todayStr;
+    from = d.toISOString().slice(); to = todayStr;
   } else if (salesFilter === 'month') {
     const d = new Date(); d.setDate(1);
-    from = d.toISOString().slice(0,10); to = todayStr;
+    from = d.toISOString().slice(); to = todayStr;
   } else if (salesFilter === 'custom') {
     from = salesCustomFrom; to = salesCustomTo;
     if (!from || !to) from = '2000-01-01';
@@ -110,7 +110,7 @@ function renderSales() {
   }).join('') || `<tr><td colspan="8"><div class="empty-state"><p>No sales recorded yet.</p></div></td></tr>`;
 
   // Returns history
-  const returnRows = AppData.returns.slice().reverse().slice(0,10).map(r => {
+  const returnRows = AppData.returns.slice().reverse().slice().map(r => {
     const sale = AppData.sales.find(s => s.id === r.saleId);
     return `<tr>
       <td style="font-size:12px;color:var(--text3)">${fmtDate(r.date)}</td>
