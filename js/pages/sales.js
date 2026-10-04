@@ -16,10 +16,10 @@ function getFilteredSales() {
     from = to = todayStr;
   } else if (salesFilter === 'week') {
     const d = new Date(); d.setDate(d.getDate() - 6);
-    from = d.toISOString().slice(); to = todayStr;
+    from = d.toISOString().slice(0,10); to = todayStr;
   } else if (salesFilter === 'month') {
     const d = new Date(); d.setDate(1);
-    from = d.toISOString().slice(); to = todayStr;
+    from = d.toISOString().slice(0,10); to = todayStr;
   } else if (salesFilter === 'custom') {
     from = salesCustomFrom; to = salesCustomTo;
     if (!from || !to) from = '2000-01-01';
