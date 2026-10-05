@@ -102,7 +102,7 @@ async function loadFromSupabase() {
       sb.from('products').select('*').eq('user_id', uid),
       sb.from('vendors').select('*').eq('user_id', uid),
       sb.from('customers').select('*').eq('user_id', uid),
-      sb.from('sales').select('*').eq('user_id', uid).order('date', { ascending: true }),
+      sb.from('sales').select('*').eq('user_id', uid).order('date', { ascending: true }).limit(3000),
       sb.from('purchases').select('*').eq('user_id', uid).order('date', { ascending: true }),
       sb.from('returns').select('*').eq('user_id', uid),
       sb.from('adjustments').select('*').eq('user_id', uid),
