@@ -144,6 +144,7 @@ async function loadFromSupabase() {
     AppData.vendors = (vendors||[]).map(r => fromRow('vendors', r));
     AppData.customers = (customers||[]).map(r => fromRow('customers', r));
     AppData.sales = (sales||[]).map(r => fromRow('sales', r));
+    AppData.sales = AppData.sales.reverse();
     AppData.purchases = (purchases||[]).map(r => fromRow('purchases', r));
     AppData.returns = (returns_||[]).map(r => fromRow('returns', r));
     AppData.adjustments = (adjustments||[]).map(r => fromRow('adjustments', r));
