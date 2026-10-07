@@ -569,16 +569,42 @@ function exportSalesToExcel() {
     });
   });
 
+  // Sheet 3: Daily summary
+const dailyMap = {};
+filtered.forEach(s => {
+  if (!dailyMap[s.date]) dailyMap[s.date] = { revenue: 0, profit: 0, cash: 0, gpay: 0, bills: 0 };
+  dailyMap[s.date].revenue += s.total || 0;
+  dailyMap[s.date].profit += s.profit || 0;
+  dailyMap[s.date].cash += (s.payment || 'Cash') === 'Cash' ? (s.total || 0) : 0;
+  dailyMap[s.date].gpay += s.payment === 'GPay' ? (s.total || 0) : 0;
+  dailyMap[s.date].bills += 1;
+});
+const dailyData = [['Date', 'Bills', 'Revenue (₹)', 'Cash (₹)', 'GPay (₹)', 'Profit (₹)']];
+Object.keys(dailyMap).sort().forEach(date => {
+  const d = dailyMap[date];
+  dailyData.push([date, d.bills, Math.round(d.revenue*100)/100, Math.round(d.cash*100)/100, Math.round(d.gpay*100)/100, Math.round(d.profit*100)/100]);
+});
+// Totals row
+dailyData.push([
+  'TOTAL',
+  filtered.length,
+  Math.round(filtered.reduce((a,s)=>a+(s.total||0),0)*100)/100,
+  Math.round(filtered.filter(s=>(s.payment||'Cash')==='Cash').reduce((a,s)=>a+(s.total||0),0)*100)/100,
+  Math.round(filtered.filter(s=>s.payment==='GPay').reduce((a,s)=>a+(s.total||0),0)*100)/100,
+  Math.round(filtered.reduce((a,s)=>a+(s.profit||0),0)*100)/100
+]);
   const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-  const ws2 = XLSX.utils.aoa_to_sheet(itemData);
+  const ws3 = XLSX.utils.aoa_to_sheet(dailyData);
+ws3['!cols'] = [12,8,14,14,12,14].map(w=>({wch:w}));
+  
+const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+const ws2 = XLSX.utils.aoa_to_sheet(itemData);
+ws1['!cols'] = [12,12,20,14,10,8,12,12,12,12,10,12,12].map(w => ({ wch: w }));
+ws2['!cols'] = [12,12,20,10,25,15,8,10,8,12,10,12].map(w => ({ wch: w }));
 
-  // Column widths
-  ws1['!cols'] = [12,12,20,14,10,8,12,12,12,12,10,12,12].map(w => ({ wch: w }));
-  ws2['!cols'] = [12,12,20,10,25,15,8,10,8,12,10,12].map(w => ({ wch: w }));
-
-  XLSX.utils.book_append_sheet(wb, ws1, 'Bill Summary');
-  XLSX.utils.book_append_sheet(wb, ws2, 'Item Detail');
+XLSX.utils.book_append_sheet(wb, ws3, 'Daily Summary');
+XLSX.utils.book_append_sheet(wb, ws1, 'Bill Summary');
+XLSX.utils.book_append_sheet(wb, ws2, 'Item Detail');
 
   // Filename based on active filter
   const filterLabel = salesFilter === 'today' ? 'Today' :
