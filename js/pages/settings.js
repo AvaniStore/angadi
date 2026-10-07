@@ -54,6 +54,7 @@ function renderSettings() {
         <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Your data is auto-saved to Google Drive. You can also export a backup.</p>
         <div class="form-actions">
           <button class="btn" onclick="exportData()">⬇ Export backup (JSON)</button>
+          <button class="btn" onclick="exportAllBillsFromSupabase()">📥 Export full bill history (Excel)</button>
           <button class="btn" onclick="importData()">⬆ Import backup</button>
           <button class="btn btn-primary" onclick="saveToGoogle()">☁ Save to Drive now</button>
           <button class="btn" onclick="showSyncDebug()" title="Show sync info for troubleshooting">🔍 Sync info</button>
@@ -391,4 +392,25 @@ function factoryReset() {
   autoSave();
   showToast('All data cleared ✓');
   renderSettings();
+}
+async function exportAllBillsFromSupabase() {
+  if (typeof XLSX === 'undefined') { showToast('Excel library not loaded'); return; }
+  showToast('Fetching all bills from Supabase...');
+  const { data, error } = await window._sb.from('sales')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('date', { ascending: true })
+    .limit(10000);
+  if (error) { showToast('Error fetching bills'); return; }
+  const rows = [['Bill #','Date','Customer','Phone','Payment','Items','Total','Profit']];
+  data.forEach(s => {
+    const sale = fromRow('sales', s);
+    rows.push([sale.id, sale.date, sale.customer, sale.phone||'', sale.payment||'Cash', (sale.items||[]).length, sale.total, sale.profit]);
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [14,12,20,14,10,8,12,12].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'All Bills');
+  XLSX.writeFile(wb, `Avani_AllBills_${today()}.xlsx`);
+  showToast(`Exported ${data.length} bills ✓`);
 }
