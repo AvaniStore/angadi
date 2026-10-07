@@ -391,13 +391,15 @@ function openVegPriceUpdate() {
         <button class="btn btn-sm" onclick="document.getElementById('product-form-container').innerHTML=''">Cancel</button>
       </div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Update cost and selling prices. Leave blank to keep existing price.</p>
-
-      <!-- Sticky search + header -->
+      <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="selectAllVegReset(true)">☑ Select all</button>
+        <button class="btn btn-sm" onclick="selectAllVegReset(false)">☐ Deselect all</button>
+        <button class="btn btn-sm btn-danger" onclick="resetSelectedVegStock()">Set selected stock to 0</button>
+      </div>
       <div style="position:sticky;top:52px;background:var(--bg2);z-index:10;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px">
         <input id="veg-search" type="text" placeholder="🔍 Search vegetable or fruit..." oninput="filterVegPriceRows(this.value)"
           style="width:100%;padding:8px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text)">
       </div>
-
       <div id="veg-price-rows">
         ${vegs.map(v => vegPriceRow(v)).join('')}
       </div>
@@ -408,13 +410,37 @@ function openVegPriceUpdate() {
     </div>
   `;
   document.getElementById('product-form-container').scrollIntoView({ behavior: 'smooth' });
-  // Auto-focus search after scroll
   setTimeout(() => { const s = document.getElementById('veg-search'); if(s) s.focus(); }, 400);
+}
+
+function selectAllVegReset(checked) {
+  AppData.products.filter(p => p.cat === 'Vegetables' || p.cat === 'Fruits').forEach(v => {
+    const cb = document.getElementById(`vp-reset-${v.id}`);
+    if (cb) cb.checked = checked;
+  });
+}
+
+function resetSelectedVegStock() {
+  const vegs = AppData.products.filter(p => p.cat === 'Vegetables' || p.cat === 'Fruits');
+  let count = 0;
+  vegs.forEach(v => {
+    const cb = document.getElementById(`vp-reset-${v.id}`);
+    const stockEl = document.getElementById(`vp-stock-${v.id}`);
+    if (cb && cb.checked) {
+      v.stock = 0;
+      if (stockEl) stockEl.value = 0;
+      if (typeof saveRecord === 'function') saveRecord('products', v).catch(console.error);
+      count++;
+    }
+  });
+  if (count) showToast(`Reset stock to 0 for ${count} item${count !== 1 ? 's' : ''} ✓`);
+  else showToast('No items selected');
 }
 
 function vegPriceRow(v) {
   const inputStyle = 'padding:5px 4px;border:1px solid var(--border2);border-radius:var(--radius);font-size:13px;background:var(--bg2);color:var(--text);width:72px;text-align:center';
   return `<div class="veg-price-row" data-name="${v.name.toLowerCase()}" style="display:flex;align-items:center;gap:12px;margin-bottom:6px;padding:8px 4px;border-bottom:1px solid var(--border)">
+    <input type="checkbox" id="vp-reset-${v.id}" style="width:16px;height:16px;cursor:pointer;flex-shrink:0">
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.name}${v.brand ? `<span style="font-size:11px;color:var(--text3);font-weight:400"> (${v.brand})</span>` : ''}</div>
       <div style="font-size:11px;color:var(--text3);margin-top:1px">
